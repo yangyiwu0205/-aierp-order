@@ -200,7 +200,7 @@ function call(action, arg) {
   const done = (r, ok, bad) => {
     setNet(true);
     if (r && r.err === 'PIN') { LS.set('pin', ''); PIN = ''; showLogin('密碼不對'); return bad(new Error('密碼不對')); }
-    if (!r || !r.ok) return bad(new Error(r && r.err || '雲端沒有回應'));
+    if (!r || !r.ok) return bad(new Error(r && (r.msg || r.err) || '雲端沒有回應'));
     ok(r);
   };
   const fail = (e, bad) => { const err = new Error(String(e && (e.message || e))); err.net = isNetErr(e); if (err.net) setNet(false); bad(err); };
@@ -706,7 +706,7 @@ if (PIN && WHO.name) { boot(); logIn().catch(() => {}); }
 else showLogin();
 </script>
 <script>
-// 離線快取：沒訊號也能打開這一頁（網站版 524a98cbd5）
+// 離線快取：沒訊號也能打開這一頁（網站版 4e8d97a578）
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
