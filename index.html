@@ -149,6 +149,11 @@ header{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid v
  * ========================================================================== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbxbcwAR4-lWp-8ybzAAev1yzBTmz-6ITqWSoGP5blVMvHoOCl5OUgPzF6Aaq03b651E/exec';
 const GAS = !!(window.google && google.script && google.script.run);
+// 網站版（可即時掃條碼、離線打開）。網址用拼的，避開 Google 砍「//」的問題
+const SITE_URL = ['https:', '', 'yangyiwu0205.github.io', '-aierp-order', ''].join('/');
+const IN_LINE = /\bLine\//i.test(navigator.userAgent);
+// LINE 內建瀏覽器不給相機：網站版在 LINE 裡打開就自動改用手機的 Chrome／Safari 開
+if (!GAS && IN_LINE && !/openExternalBrowser/.test(location.search)) location.replace(location.pathname + '?openExternalBrowser=1');
 
 const LS = { get(k, d) { try { const v = localStorage.getItem('eq_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
              set(k, v) { try { localStorage.setItem('eq_' + k, JSON.stringify(v)); } catch (e) { toast('手機儲存空間不足！'); } } };
@@ -495,13 +500,14 @@ function scanSheet(live, msg) {
   openSheet(`<h2><span>掃條碼</span><button class="ghost" onclick="closeSheet()">關閉</button></h2>
     ${live ? '<div class="aim" id="aimBox"><video id="vid" playsinline muted></video></div>' : ''}
     <div id="scanMsg" class="code" style="text-align:center;margin:8px 0;font-size:14px">${msg}</div>
+    ${GAS ? `<a href="${SITE_URL}" target="_blank" style="display:block;text-align:center;background:#1d4ed8;color:#fff;border-radius:10px;padding:12px;font-size:16px;margin-bottom:8px;text-decoration:none">🎥 改用網站版（對著條碼直接掃）</a>` : ''}
     <label style="display:block;text-align:center;background:var(--pri);color:#fff;border-radius:10px;padding:12px;font-size:16px">📸 ${live ? '拍照辨識（相機開不起來時用這個）' : '再拍一次'}
       <input type="file" accept="image/*" capture="environment" style="display:none" onchange="scanPhoto(this)"></label>
     <div class="code" style="margin-top:6px">拍的時候：條碼橫放、佔畫面一半寬、對焦清楚、不要反光</div>
     <div class="qrow"><input id="manual" type="search" inputmode="numeric" placeholder="或手動輸入條碼" onkeydown="if(event.key==='Enter')gotCode(this.value)"><button class="add" onclick="gotCode(document.getElementById('manual').value)">查</button></div>`);
 }
 function openScan() {
-  if (GAS) { loadZXing().catch(() => {}); return document.getElementById('photoIn').click(); }
+  if (GAS) { loadZXing().catch(() => {}); return scanSheet(false, '這是 Google 版，只能拍照辨識。<br>要對著條碼直接掃，請按下面藍色按鈕改用網站版'); }
   scanSheet(true, '把條碼對準紅線');
   startCam();
 }
@@ -509,7 +515,16 @@ function photoPicked(inp) { scanSheet(false, '辨識中…'); scanPhoto(inp); }
 async function startCam() {
   const msg = document.getElementById('scanMsg');
   try { STREAM = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false }); }
-  catch (e) { document.getElementById('aimBox').classList.add('hide'); msg.textContent = '這裡開不了即時相機，請按下面「拍照辨識」'; return; }
+  catch (e) {
+    document.getElementById('aimBox').classList.add('hide');
+    const n = e && e.name, ios = /iPhone|iPad/.test(navigator.userAgent);
+    msg.innerHTML = '<b style="color:var(--bad)">開不了即時相機</b><br>' + (
+      !navigator.mediaDevices ? '這個瀏覽器不能開相機，請用' + (ios ? ' Safari ' : ' Chrome ') + '打開這個網址（不要在 LINE 裡開）'
+      : n === 'NotAllowedError' ? '相機權限被拒絕了：' + (ios ? '到「設定 → Safari → 相機」改成「允許」，' : '按網址列左邊的圖示 → 權限 → 相機改成「允許」，') + '再重開這頁'
+      : n === 'NotReadableError' ? '相機被別的 App 占用，先關掉其他用相機的 App 再試'
+      : '原因：' + esc(n || e) ) + '<br>暫時可以先用下面的「拍照辨識」';
+    return;
+  }
   const v = document.getElementById('vid'); v.srcObject = STREAM; await v.play().catch(() => {});
   SCANNING = true;
   const cv = document.createElement('canvas'), ctx = cv.getContext('2d', { willReadFrequently: true });
@@ -706,7 +721,7 @@ if (PIN && WHO.name) { boot(); logIn().catch(() => {}); }
 else showLogin();
 </script>
 <script>
-// 離線快取：沒訊號也能打開這一頁（網站版 4e8d97a578）
+// 離線快取：沒訊號也能打開這一頁（網站版 b3ab87a437）
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
