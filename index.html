@@ -671,13 +671,21 @@ async function excel(mode) {
     for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
     const blob = new Blob([arr], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const file = new File([blob], r.data.name.replace('報價單', '訂貨單'), { type: blob.type });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: file.name }); return; } catch (e) { if (e.name === 'AbortError') return; }
-    }
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name;
-    document.body.appendChild(a); a.click(); a.remove();
-    toast('已下載 ' + file.name);
+    // 做好後在頁面上放「下載」按鈕（手機上點了才算本人操作，下載／分享才不會被擋）
+    XLS = { file, url: URL.createObjectURL(blob), back: o.id };
+    const share = navigator.canShare && navigator.canShare({ files: [file] });
+    openSheet(`<h2><span>Excel 做好了</span><button class="ghost" onclick="closeSheet()">關閉</button></h2>
+      <div class="code" style="margin:6px 0 12px;word-break:break-all">📄 ${esc(file.name)}（${Math.max(1, Math.round(blob.size / 1024))} KB）</div>
+      <a href="${XLS.url}" download="${esc(file.name)}" onclick="setTimeout(()=>toast('已下載，在手機的「下載」資料夾'),300)"
+        style="display:block;text-align:center;background:var(--pri);color:#fff;border-radius:10px;padding:14px;font-size:17px;text-decoration:none">⬇ 下載 Excel</a>
+      ${share ? '<button style="width:100%;margin-top:8px;padding:13px;font-size:16px" onclick="shareXls()">📤 分享（傳 LINE、Email）</button>' : ''}
+      <div class="row" style="margin-top:12px"><button onclick="openOrder(XLS.back)">返回這張單</button></div>`);
   } catch (e) { toast(e.net ? '沒有網路，Excel 要有網路才能做' : 'Excel 產生失敗：' + e.message); }
+}
+let XLS = null;
+async function shareXls() {
+  try { await navigator.share({ files: [XLS.file], title: XLS.file.name }); }
+  catch (e) { if (e.name !== 'AbortError') toast('分享失敗，請改用「下載 Excel」'); }
 }
 
 /* ---------------- 抄貨紀錄：依日期 → 客戶 ---------------- */
@@ -721,7 +729,7 @@ if (PIN && WHO.name) { boot(); logIn().catch(() => {}); }
 else showLogin();
 </script>
 <script>
-// 離線快取：沒訊號也能打開這一頁（網站版 b3ab87a437）
+// 離線快取：沒訊號也能打開這一頁（網站版 fc5e6d2da1）
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
