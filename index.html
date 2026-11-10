@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>AIERP 抄貨</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--ink:#1d2330;--sub:#6b7280;--line:#e5e7eb;--pri:#0f766e;--good:#15803d;--mid:#c2410c;--bad:#b91c1c;--chip:#e6f4f1;--hl:#fff7e6}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;overflow-x:hidden;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,"PingFang TC","Microsoft JhengHei",sans-serif}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:9px 14px;background:var(--chip);color:var(--ink)}
+button.pri{background:var(--pri);color:#fff}
+button.ghost{background:transparent;color:var(--pri);padding:6px 8px}
+button.danger{background:#fee2e2;color:var(--bad)}
+input,textarea,select{font:inherit;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#fff;color:var(--ink);width:100%}
+.hide{display:none!important}
+header{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--line);padding:10px 12px 8px}
+.top{display:flex;align-items:center;gap:6px}
+.top h1{font-size:17px;margin:0;white-space:nowrap}
+.top .sp{flex:1}
+.top button.ghost{padding:6px 4px;font-size:14px}
+.net{font-size:12px;padding:3px 8px;border-radius:12px;white-space:nowrap}
+.net.on{background:#dcfce7;color:#166534}.net.off{background:#fee2e2;color:#991b1b}
+.crow{display:flex;gap:6px;margin-top:8px}
+.cust{flex:1;min-width:0;display:flex;align-items:center;gap:8px;background:var(--chip);border-radius:10px;padding:8px 10px;font-size:14px}
+.cust b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cust.none b{color:var(--sub);font-weight:400}
+.crow input[type=date]{width:136px;flex:0 0 auto;padding:7px 8px;font-size:14px}
+.tools{display:flex;gap:6px;margin-top:6px}
+.tools input[type=search]{flex:1;min-width:0;width:auto;font-size:16px}
+.scan{flex:0 0 auto;background:var(--pri);color:#fff;font-size:15px;padding:9px 12px}
+.chips{display:flex;gap:6px;margin-top:6px;overflow-x:auto;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chips button{flex:0 0 auto;padding:6px 12px;border-radius:20px;background:#f1f3f6;font-size:13px}
+.chips button.on{background:var(--pri);color:#fff}
+.meta{font-size:12px;color:var(--sub);padding:6px 12px}
+.list{padding:0 10px 110px}
+.item{background:var(--card);border-radius:12px;padding:10px 12px;margin-bottom:8px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.item.inq{outline:2px solid #86efac}
+.nm{font-weight:600}
+.code{font-size:12px;color:var(--sub);word-break:break-all}
+.nums{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:13px;margin-top:4px}
+.nums b{font-weight:600}
+.neg{color:var(--bad)}
+.dates{font-size:12px;color:var(--sub);margin-top:2px}
+.last{background:var(--hl);border-radius:8px;padding:5px 8px;font-size:13px;margin-top:6px;color:#7c4a03}
+.mg{font-weight:700}
+.mg.g{color:var(--good)}.mg.m{color:var(--mid)}.mg.b{color:var(--bad)}
+.qrow{display:flex;gap:6px;align-items:center;margin-top:8px}
+.qrow label{font-size:12px;color:var(--sub);white-space:nowrap}
+.qrow input{padding:7px 8px;font-size:16px;font-weight:600;border-color:#99d5cb;background:#f6fbfa;min-width:0}
+.qrow .n{flex:1}.qrow .p{flex:1.2}
+.qrow .add{flex:0 0 auto;padding:8px 12px;background:var(--pri);color:#fff;font-weight:600}
+.qrow .add.in{background:var(--good)}
+.cline{font-size:12px;margin-top:4px;color:var(--sub)}
+.more{display:block;margin:6px auto 20px}
+.cart{position:fixed;left:10px;right:10px;bottom:10px;z-index:6;display:flex;align-items:center;gap:10px;background:#111827;color:#fff;border-radius:14px;padding:10px 14px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.cart .t{flex:1;font-size:14px;min-width:0}
+.cart button{background:#fff;color:#111827;font-weight:600}
+.sheet{position:fixed;inset:0;z-index:10;background:rgba(0,0,0,.4);display:flex;align-items:flex-end}
+.panel{background:#fff;width:100%;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:14px 14px 24px}
+.panel h2{font-size:17px;margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.panel h2 span{flex:1}
+.kv{display:grid;grid-template-columns:88px 1fr;gap:6px 10px;margin:10px 0;font-size:14px}
+.kv div:nth-child(odd){color:var(--sub)}
+.qi{border-bottom:1px solid var(--line);padding:10px 0}
+.sum{background:#f8fafc;border-radius:10px;padding:10px 12px;margin:10px 0;font-size:14px}
+.sum div{display:flex;justify-content:space-between}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.row button{flex:1}
+.toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:#111827;color:#fff;padding:9px 16px;border-radius:20px;z-index:30;font-size:14px;max-width:90vw}
+.center{text-align:center;padding:40px 20px;color:var(--sub)}
+.login{max-width:320px;margin:18vh auto;padding:20px;text-align:center}
+.login input{text-align:center;font-size:22px;letter-spacing:6px;margin:14px 0}
+.clist .c{padding:10px 4px;border-bottom:1px solid var(--line)}
+.clist .c b{display:block}
+.day{font-weight:700;margin:14px 0 6px;color:var(--sub);font-size:14px}
+.ord{background:#f8fafc;border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.ord.cur{outline:2px solid var(--pri)}
+.badge{font-size:11px;padding:2px 7px;border-radius:10px;white-space:nowrap}
+.badge.wait{background:#fef3c7;color:#92400e}.badge.ok{background:#dcfce7;color:#166534}
+#vid{width:100%;max-height:55vh;background:#000;border-radius:10px;object-fit:cover}
+.aim{position:relative}
+.aim:after{content:"";position:absolute;left:10%;right:10%;top:50%;height:2px;background:#ef4444;box-shadow:0 0 6px #ef4444}
+.ccard{background:#fff;padding:18px 16px}
+.ccard h3{margin:0;font-size:20px;text-align:center}
+.ccard .d{text-align:center;color:var(--sub);font-size:13px;margin:4px 0 12px}
+.ci{display:flex;gap:10px;border-bottom:1px solid var(--line);padding:8px 0}
+.ci .r{text-align:right;font-size:14px;white-space:nowrap}
+.ctot{text-align:right;font-size:18px;font-weight:700;margin-top:12px}
+.nocost .cst{display:none!important}
+</style>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f766e">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AIERP抄貨">
+</head>
+<body class="nocost">
+
+<div id="login" class="login hide">
+  <h2>AIERP 抄貨</h2>
+  <div style="color:var(--sub)">請輸入名字和密碼（登入會記錄手機與 IP）</div>
+  <input id="who" placeholder="你的名字" style="margin-top:14px;font-size:17px">
+  <input id="pin" type="tel" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="密碼">
+  <button class="pri" style="width:100%" onclick="doLogin()">進入</button>
+  <div id="loginErr" style="color:var(--bad);margin-top:10px"></div>
+</div>
+
+<div id="app" class="hide">
+  <header>
+    <div class="top">
+      <h1>AIERP 抄貨</h1>
+      <span class="net on" id="net" onclick="syncNow(true)">● 線上</span>
+      <span class="sp"></span>
+      <button class="ghost" id="costBtn" onclick="toggleCost()">顯示成本</button>
+      <button class="ghost" onclick="openOrders()">抄貨紀錄</button>
+    </div>
+    <div class="crow">
+      <div class="cust none" id="custBar" onclick="pickCust()"><span>客戶</span><b id="custName">點這裡選客戶</b><span>▾</span></div>
+      <input type="date" id="day" onchange="setDay(this.value)">
+    </div>
+    <div class="tools">
+      <input id="q" type="search" placeholder="品名／貨號／條碼（掃描槍也可以）" oninput="onSearch()" onkeydown="if(event.key==='Enter'){event.preventDefault();enterSearch()}">
+      <button class="scan" onclick="openScan()">📷 掃條碼</button>
+    </div>
+    <div class="chips" id="chips"></div>
+  </header>
+  <div class="meta" id="meta">讀取中…</div>
+  <div class="list" id="list"></div>
+  <div class="cart hide" id="cart" onclick="openOrder()">
+    <div class="t" id="cartT"></div>
+    <button>看抄貨單</button>
+  </div>
+</div>
+
+<input type="file" id="photoIn" accept="image/*" capture="environment" style="display:none" onchange="photoPicked(this)">
+<div id="sheet" class="sheet hide" onclick="if(event.target===this)closeSheet()"><div class="panel" id="panel"></div></div>
+
+<script>
+/* ============================================================================
+ * AIERP 抄貨（現場抄貨／報價）
+ * - 抄貨單＝一個客戶＋一天，全部先存在這支手機，有網路才上傳（沒網路照常抄）
+ * - 品項、庫存、客戶叫貨紀錄存在手機（IndexedDB），沒網路也能搜尋、掃條碼
+ * - 成本只放記憶體，按「顯示成本」才跟雲端拿，不存手機
+ * - 在 Google 頁面裡用 google.script.run；單獨開這個檔（離線版）就用 fetch 叫同一個 API
+ * ========================================================================== */
+const API_URL = 'https://script.google.com/macros/s/AKfycbxbcwAR4-lWp-8ybzAAev1yzBTmz-6ITqWSoGP5blVMvHoOCl5OUgPzF6Aaq03b651E/exec';
+const GAS = !!(window.google && google.script && google.script.run);
+
+const LS = { get(k, d) { try { const v = localStorage.getItem('eq_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+             set(k, v) { try { localStorage.setItem('eq_' + k, JSON.stringify(v)); } catch (e) { toast('手機儲存空間不足！'); } } };
+const LSQ = k => { try { return JSON.parse(localStorage.getItem('sq_' + k)); } catch (e) { return null; } };
+let PIN = LS.get('pin', '') || LSQ('pin') || '';
+let WHO = LS.get('who', null) || LSQ('who') || {};
+if (!WHO.id) WHO.id = 'D' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
+LS.set('who', WHO);
+
+/* ---------------- 手機上的大資料：IndexedDB ---------------- */
+const IDB = {
+  db: null,
+  open() {
+    if (this.db) return Promise.resolve(this.db);
+    return new Promise((ok, bad) => {
+      const r = indexedDB.open('aierp-quote', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => ok(this.db = r.result);
+      r.onerror = () => bad(r.error);
+    });
+  },
+  async get(k) { try { const db = await this.open(); return await new Promise(ok => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => ok(q.result); q.onerror = () => ok(undefined); }); } catch (e) { return undefined; } },
+  async set(k, v) { try { const db = await this.open(); await new Promise(ok => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = ok; t.onerror = ok; }); } catch (e) {} },
+};
+
+let SNAP = null, BYSKU = {}, BYBC = {}, HALL = {}, HIST = {}, COSTS = null, showCost = false;
+let CUST = LS.get('cust', null);
+let DAY = today(), MODE = 'recent', LIMIT = 60, ONLINE = navigator.onLine;
+let ORDERS = LS.get('orders', []);
+
+function today() { return new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10); }
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = v => v == null || v === '' || isNaN(v) ? '—' : '$' + (Math.round(v * 100) / 100).toLocaleString('zh-TW');
+const numTxt = v => v == null ? '—' : (Math.round(v * 100) / 100).toLocaleString('zh-TW');
+const mgOf = (p, c) => p > 0 && c != null ? Math.round((p - c) / p * 1000) / 10 : null;
+const mgCls = m => m == null ? '' : m >= 30 ? 'g' : m >= 15 ? 'm' : 'b';
+const mgTxt = m => m == null ? '—' : m + '%';
+const md = d => { if (!d) return ''; const p = d.split('-'); return Number(p[1]) + '/' + Number(p[2]); };
+const ymd = d => d ? d.replace(/-/g, '/') : '';
+const ago = d => { if (!d) return ''; const n = Math.round((new Date(today()) - new Date(d)) / 864e5); return n <= 0 ? '今天' : n + ' 天前'; };
+const WEEK = '日一二三四五六';
+const dayTxt = d => { const t = new Date(d + 'T00:00:00'); return `${t.getMonth() + 1}/${t.getDate()}（${WEEK[t.getDay()]}）${d === today() ? '今天' : ''}`; };
+
+function toast(t) { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2200); }
+
+/* ---------------- 叫雲端 ---------------- */
+const isNetErr = e => !navigator.onLine || /network|http 0|failed to fetch|load failed|連線|timeout/i.test(String(e && (e.message || e)));
+function call(action, arg) {
+  const done = (r, ok, bad) => {
+    setNet(true);
+    if (r && r.err === 'PIN') { LS.set('pin', ''); PIN = ''; showLogin('密碼不對'); return bad(new Error('密碼不對')); }
+    if (!r || !r.ok) return bad(new Error(r && r.err || '雲端沒有回應'));
+    ok(r);
+  };
+  const fail = (e, bad) => { const err = new Error(String(e && (e.message || e))); err.net = isNetErr(e); if (err.net) setNet(false); bad(err); };
+  if (GAS) return new Promise((ok, bad) => google.script.run.withSuccessHandler(r => done(r, ok, bad)).withFailureHandler(e => fail(e, bad)).erpCall(PIN, action, arg || {}));
+  return new Promise((ok, bad) => {
+    fetch(API_URL, { method: 'POST', body: JSON.stringify({ page: 'erp', pin: PIN, api: action, arg: arg || {} }) })
+      .then(r => r.json()).then(r => done(r, ok, bad)).catch(e => fail(e, bad));
+  });
+}
+function setNet(on) {
+  ONLINE = on;
+  const p = ORDERS.filter(o => o.dirty).length, el = document.getElementById('net');
+  el.className = 'net ' + (on ? 'on' : 'off');
+  el.textContent = (on ? '● 線上' : '● 離線') + (p ? `｜${p} 張待上傳` : '');
+}
+
+/* ---------------- 登入 ---------------- */
+function showLogin(err) { document.getElementById('app').classList.add('hide'); document.getElementById('login').classList.remove('hide'); document.getElementById('loginErr').textContent = err || ''; document.getElementById('who').value = WHO.name || ''; }
+async function doLogin() {
+  PIN = document.getElementById('pin').value.trim();
+  WHO.name = document.getElementById('who').value.trim();
+  if (!WHO.name) return document.getElementById('loginErr').textContent = '請填名字';
+  LS.set('who', WHO);
+  try { await logIn(); LS.set('pin', PIN); await boot(); } catch (e) { document.getElementById('loginErr').textContent = e.net ? '沒有網路，第一次登入需要網路' : e.message; }
+}
+document.getElementById('pin').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+function deviceName() {
+  const u = navigator.userAgent;
+  const m = u.match(/\(Linux; Android [\d.]+; ([^;)]+)/) || u.match(/\((iPhone|iPad)[^)]*OS ([\d_]+)/);
+  if (m) return m[2] ? m[1] + ' iOS ' + m[2].replace(/_/g, '.') : 'Android ' + m[1].replace(/ Build.*/, '');
+  return /Windows/.test(u) ? 'Windows 電腦' : /Mac OS/.test(u) ? 'Mac 電腦' : '其他裝置';
+}
+async function getIP() { try { const r = await fetch('https://api.ipify.org?format=json'); return (await r.json()).ip || ''; } catch (e) { return ''; } }
+async function logIn() { await call('login', { name: WHO.name, id: WHO.id, ip: await getIP(), dev: deviceName(), ua: navigator.userAgent }); }
+
+/* 開機：手機有存資料就先用（沒網路也能用），再到背景跟雲端對資料 */
+async function boot() {
+  document.getElementById('login').classList.add('hide');
+  document.getElementById('app').classList.remove('hide');
+  document.getElementById('day').value = DAY;
+  drawCust(); updateCart(); setNet(navigator.onLine);
+  const cached = await IDB.get('snap');
+  if (cached) { useSnap(cached); HALL = (await IDB.get('hist')) || {}; useCust(); render(); }
+  else document.getElementById('list').innerHTML = '<div class="center">第一次使用，下載 AIERP 品項中（約 1MB）…</div>';
+  try {
+    await refreshData(!cached);
+  } catch (e) {
+    if (!cached) document.getElementById('list').innerHTML = `<div class="center">${e.net ? '沒有網路，第一次要先在有網路的地方打開一次' : esc(e.message)}<br><br><button onclick="location.reload()">再試一次</button></div>`;
+    else if (!e.net) toast(e.message);
+  }
+  syncNow();
+}
+async function refreshData(force) {
+  const v = (await call('ver')).data, have = LS.get('ver', {});
+  if (force || v.snap !== have.snap || !SNAP) {
+    const s = (await call('snap')).data; await IDB.set('snap', s); useSnap(s);
+  }
+  if (force || v.hist !== have.hist) { HALL = (await call('hist')).data || {}; await IDB.set('hist', HALL); }
+  LS.set('ver', v);
+  useCust(); render();
+  pullOrders().catch(() => {});
+}
+function useSnap(s) {
+  SNAP = s; BYSKU = {}; BYBC = {};
+  s.items.forEach(it => {
+    BYSKU[it.k] = it;
+    String(it.b || '').split(/[\s,;／/]+/).filter(Boolean).forEach(b => { (BYBC[b.toUpperCase()] ||= []).push(it); });
+  });
+}
+function useCust() { HIST = CUST ? HALL[CUST.k] || {} : {}; if (CUST && MODE === 'recent' && Object.keys(HIST).length && !document.getElementById('q').value) MODE = 'cust'; }
+
+/* ---------------- 抄貨單（本機） ---------------- */
+function saveOrders() { LS.set('orders', ORDERS); updateCart(); setNet(ONLINE); }
+function curOrder(create) {
+  if (!CUST) return null;
+  let o = ORDERS.find(x => !x.del && x.cust.k === CUST.k && x.date === DAY && x.sales === WHO.name);
+  if (!o && create) {
+    o = { id: 'O' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), no: '', date: DAY, cust: { k: CUST.k, n: CUST.n }, sales: WHO.name, note: '', items: [], upd: Date.now(), dirty: true };
+    ORDERS.push(o);
+  }
+  return o;
+}
+function touch(o) { o.upd = Date.now(); o.dirty = true; saveOrders(); clearTimeout(touch.t); touch.t = setTimeout(syncNow, 4000); }
+
+/* ---------------- 上傳／下載 ---------------- */
+let SYNCING = false;
+async function syncNow(manual) {
+  if (SYNCING) return;
+  const pend = ORDERS.filter(o => o.dirty);
+  if (!pend.length) { if (manual) { toast('全部都已上傳'); pullOrders().catch(() => {}); } return; }
+  SYNCING = true;
+  try {
+    const sent = pend.map(o => ({ id: o.id, date: o.date, cust: o.cust, sales: o.sales, note: o.note, items: o.items, upd: o.upd, del: !!o.del }));
+    const r = (await call('syncOrders', { orders: sent, dev: deviceName() })).data;
+    r.forEach(x => {
+      const o = ORDERS.find(y => y.id === x.id); if (!o) return;
+      o.no = x.no;
+      if (o.upd === x.upd) o.dirty = false;      // 上傳途中又改過的，下次再送
+    });
+    ORDERS = ORDERS.filter(o => !(o.del && !o.dirty));
+    saveOrders();
+    if (manual) toast(`已上傳 ${r.length} 張`);
+  } catch (e) {
+    if (manual) toast(e.net ? '還是沒有網路，有網路會自動上傳' : '上傳失敗：' + e.message);
+  } finally { SYNCING = false; }
+}
+/* 其他手機（或別的業務）抄的單也拉下來看；手機上還沒上傳的不會被蓋掉 */
+async function pullOrders() {
+  const list = (await call('listOrders', { days: 45 })).data;
+  list.forEach(c => {
+    const i = ORDERS.findIndex(o => o.id === c.id);
+    if (i < 0) { if (!c.del) ORDERS.push(Object.assign(c, { dirty: false })); return; }
+    const o = ORDERS[i];
+    if (o.dirty) return;
+    if (c.del) ORDERS.splice(i, 1);
+    else if (c.upd >= o.upd) ORDERS[i] = Object.assign(c, { dirty: false });
+  });
+  const cut = new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10);
+  ORDERS = ORDERS.filter(o => o.dirty || o.date >= cut);
+  saveOrders(); updateCart();
+}
+window.addEventListener('online', () => { setNet(true); syncNow(); });
+window.addEventListener('offline', () => setNet(false));
+setInterval(() => { if (ORDERS.some(o => o.dirty)) syncNow(); }, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) syncNow(); });
+
+/* ---------------- 客戶、日期 ---------------- */
+function drawCust() {
+  document.getElementById('custBar').classList.toggle('none', !CUST);
+  document.getElementById('custName').textContent = CUST ? CUST.n + '（' + CUST.k + '）' : '點這裡選客戶';
+}
+function pickCust() {
+  if (!SNAP) return;
+  openSheet(`<h2><span>選客戶</span><button class="ghost" onclick="closeSheet()">關閉</button></h2>
+    <input id="cq" type="search" placeholder="客戶名稱／代號" oninput="drawCustList()">
+    <div class="clist" id="clist"></div>`);
+  drawCustList();
+  setTimeout(() => document.getElementById('cq').focus(), 50);
+}
+function drawCustList() {
+  const q = (document.getElementById('cq').value || '').trim().toLowerCase();
+  const arr = SNAP.customers.filter(c => !q || (c.n + ' ' + c.s + ' ' + c.k).toLowerCase().includes(q)).slice(0, 80);
+  document.getElementById('clist').innerHTML = arr.map(c => `<div class="c" onclick="setCust('${esc(c.k)}')"><b>${esc(c.n || c.s)}</b>
+    <span class="code">${esc(c.k)}${c.s && c.s !== c.n ? '｜' + esc(c.s) : ''}${c.t ? '｜最近叫貨 ' + ymd(c.t) : '｜兩年內沒叫貨'}</span></div>`).join('') || '<div class="center">找不到</div>';
+}
+function setCust(k, name) {
+  const c = SNAP && SNAP.customers.find(x => x.k === k);
+  CUST = k ? { k, n: c ? c.n || c.s : name || k } : null;
+  LS.set('cust', CUST);
+  closeSheet(); drawCust();
+  MODE = 'recent'; useCust(); LIMIT = 60; render(); updateCart();
+}
+function setDay(d) { DAY = d || today(); document.getElementById('day').value = DAY; render(); updateCart(); }
+
+/* ---------------- 列表 ---------------- */
+function drawChips() {
+  const cs = [['recent', '最近有賣'], ['cust', '這客戶叫過'], ['order', '這張單'], ['stock', '有庫存'], ['all', '全部']];
+  document.getElementById('chips').innerHTML = cs.filter(c => (c[0] !== 'cust' && c[0] !== 'order') || CUST)
+    .map(c => `<button class="${MODE === c[0] ? 'on' : ''}" onclick="MODE='${c[0]}';LIMIT=60;render()">${c[1]}</button>`).join('');
+}
+let stimer = 0;
+function onSearch() { clearTimeout(stimer); stimer = setTimeout(() => { LIMIT = 60; render(); }, 150); }
+function matches() {
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  let arr = SNAP.items;
+  if (q) { const ws = q.split(/\s+/); arr = arr.filter(it => { const h = (it.n + ' ' + it.k + ' ' + it.b + ' ' + it.sp + ' ' + it.l).toLowerCase(); return ws.every(w => h.includes(w)); }); }
+  if (MODE === 'cust') arr = arr.filter(it => HIST[it.k]).sort((a, b) => HIST[b.k][0].localeCompare(HIST[a.k][0]) || HIST[b.k][3] - HIST[a.k][3]);
+  else if (MODE === 'order') { const o = curOrder(); const ks = o ? o.items.map(x => x.code) : []; arr = ks.map(k => BYSKU[k]).filter(Boolean).filter(it => arr.includes(it)); }
+  else if (MODE === 'stock') arr = arr.filter(it => it.oh > 0);
+  else if (MODE === 'recent' && !q) arr = arr.filter(it => it.d.length).sort((a, b) => b.d[0].localeCompare(a.d[0]));
+  else if (MODE === 'recent') arr = arr.slice().sort((a, b) => (b.d[0] || '').localeCompare(a.d[0] || ''));
+  return arr;
+}
+function render() {
+  if (!SNAP) return;
+  drawChips();
+  const arr = matches();
+  document.getElementById('meta').textContent = `${arr.length} 項｜AIERP 資料 ${String(SNAP.at).slice(5, 16)}｜銷售到 ${ymd(SNAP.lastSale).slice(5)}`;
+  const show = arr.slice(0, LIMIT);
+  document.getElementById('list').innerHTML = show.length ? show.map(card).join('') +
+    (arr.length > LIMIT ? `<button class="more" onclick="LIMIT+=100;render()">再顯示 ${Math.min(100, arr.length - LIMIT)} 項（共 ${arr.length}）</button>` : '')
+    : `<div class="center">${MODE === 'cust' ? '這個客戶兩年內沒叫過符合的品項' : MODE === 'order' ? '這張單還沒有品項' : '沒有符合的品項'}</div>`;
+}
+
+/* 預設數量：這客戶上次叫的；預設單價：這客戶上次的價 → 近 90 天成交均價 → 標價 */
+function defQty(it) { const h = HIST[it.k]; return h ? h[1] : ''; }
+function defPrice(it) { const h = HIST[it.k]; return h && h[2] > 0 ? h[2] : it.ap != null ? it.ap : it.pr != null ? it.pr : ''; }
+const inOrder = sku => { const o = curOrder(); return o && o.items.find(x => x.code === sku); };
+const DRAFT = {};
+function vals(it) {
+  const q = inOrder(it.k), dr = DRAFT[it.k] || {};
+  return { q, n: q ? q.n : dr.n != null ? dr.n : defQty(it), p: q ? q.q : dr.q != null ? dr.q : defPrice(it) };
+}
+function card(it) {
+  const h = HIST[it.k], v = vals(it), c = COSTS && COSTS[it.k], m = mgOf(Number(v.p), c);
+  return `<div class="item ${v.q ? 'inq' : ''}" id="it_${esc(it.k)}">
+    <div class="nm" onclick="openItem('${esc(it.k)}')">${it.x ? '<span class="neg">[停售]</span> ' : ''}${esc(it.n)}</div>
+    <div class="code">${esc(it.k)}${it.sp ? '｜' + esc(it.sp) : ''}${it.b ? '｜條碼 ' + esc(it.b) : ''}${it.l ? '｜' + esc(it.l) : ''}</div>
+    <div class="nums">
+      <span>剩餘庫存 <b class="${it.oh < 0 ? 'neg' : ''}">${numTxt(it.oh)}</b> ${esc(it.u)}</span>
+      ${it.ap != null ? `<span>近期均價 <b>${money(it.ap)}</b></span>` : it.pr ? `<span>標價 <b>${money(it.pr)}</b></span>` : ''}
+      ${it.q90 ? `<span>90天出 ${numTxt(it.q90)}</span>` : ''}
+    </div>
+    <div class="dates">近期銷售：${it.d.length ? it.d.map(md).join('、') + '（' + ago(it.d[0]) + '）' : '兩年內沒賣過'}</div>
+    ${h ? `<div class="last">這客戶上次 ${ymd(h[0])} 叫 <b>${numTxt(h[1])}</b> ${esc(it.u)}，單價 ${money(h[2])}（兩年內 ${h[3]} 次）</div>` : ''}
+    <div class="qrow">
+      <label>數量</label><input class="n" type="number" inputmode="decimal" value="${esc(v.n)}" placeholder="輸入" oninput="draft('${esc(it.k)}','n',this.value)">
+      <label>單價</label><input class="p" type="number" inputmode="decimal" value="${esc(v.p)}" placeholder="單價" oninput="draft('${esc(it.k)}','q',this.value)">
+      <button class="add ${v.q ? 'in' : ''}" onclick="addItem('${esc(it.k)}')">${v.q ? '✓ 已抄' : '抄入'}</button>
+    </div>
+    <div class="cline cst">成本 <b>${money(c)}</b>｜毛利 <span class="mg ${mgCls(m)}" id="mg_${esc(it.k)}">${mgTxt(m)}</span></div>
+  </div>`;
+}
+function draft(sku, k, v) {
+  const q = inOrder(sku);
+  if (q) { q[k] = v; touch(curOrder()); } else (DRAFT[sku] ||= {})[k] = v;
+  if (k === 'q' && COSTS) { const el = document.getElementById('mg_' + sku); if (el) { const m = mgOf(Number(v), COSTS[sku]); el.textContent = mgTxt(m); el.className = 'mg ' + mgCls(m); } }
+}
+function addItem(sku, fromSheet) {
+  const it = BYSKU[sku]; if (!it) return;
+  if (!CUST) { toast('先選客戶，抄的貨會記在這個客戶底下'); return pickCust(); }
+  const el = document.getElementById('it_' + sku), box = fromSheet ? document.getElementById('panel') : el;
+  const nIn = box && box.querySelector('input.n'), pIn = box && box.querySelector('input.p');
+  const n = nIn ? nIn.value : defQty(it), p = pIn ? pIn.value : defPrice(it);
+  if (!(Number(n) > 0)) { toast('請先輸入數量'); if (nIn) nIn.focus(); return; }
+  const o = curOrder(true), ex = o.items.find(x => x.code === sku);
+  if (ex) { ex.n = n; ex.q = p; }
+  else o.items.push({ code: sku, name: it.n + (it.sp ? ' ' + it.sp : ''), unit: it.u, n, q: p });
+  delete DRAFT[sku];
+  touch(o);
+  if (el) el.outerHTML = card(it);
+  toast(`已抄：${it.n} × ${n}${ONLINE ? '' : '（離線，先存手機）'}`);
+  if (fromSheet) closeSheet();
+}
+function openItem(sku) {
+  const it = BYSKU[sku]; if (!it) return toast('AIERP 沒有這個品項：' + sku);
+  const h = HIST[it.k], v = vals(it), c = COSTS && COSTS[sku];
+  const kv = [['貨號', esc(it.k)], ['規格', esc(it.sp)], ['條碼', esc(it.b)], ['單位', esc(it.u)], ['儲位', esc(it.l)], ['分類', esc(it.c)],
+    ['剩餘庫存', `<b class="${it.oh < 0 ? 'neg' : ''}">${numTxt(it.oh)}</b> ${esc(it.u)}`],
+    ['標價', it.pr ? money(it.pr) : ''], ['近期均價', it.ap != null ? money(it.ap) + '（90 天成交）' : ''],
+    ['近期銷售', it.d.length ? it.d.map(ymd).join('<br>') : '兩年內沒賣過'], ['90 天出量', it.q90 ? numTxt(it.q90) : ''],
+    ['成本', COSTS ? money(c) : '', 'cst']].filter(x => x[1]);
+  openSheet(`<h2><span>${esc(it.n)}</span><button class="ghost" onclick="closeSheet()">關閉</button></h2>
+    ${h ? `<div class="last">${esc(CUST.n)} 上次 ${ymd(h[0])}（${ago(h[0])}）叫 <b>${numTxt(h[1])}</b> ${esc(it.u)}，單價 ${money(h[2])}，兩年內 ${h[3]} 次</div>` : CUST ? `<div class="last">${esc(CUST.n)} 兩年內沒叫過這個</div>` : '<div class="last">還沒選客戶</div>'}
+    <div class="kv">${kv.map(x => `<div class="${x[2] || ''}">${x[0]}</div><div class="${x[2] || ''}">${x[1]}</div>`).join('')}</div>
+    <div class="qrow">
+      <label>數量</label><input class="n" id="sn" type="number" inputmode="decimal" value="${esc(v.n)}" placeholder="輸入數量" onkeydown="if(event.key==='Enter')addItem('${esc(sku)}',true)">
+      <label>單價</label><input class="p" type="number" inputmode="decimal" value="${esc(v.p)}">
+    </div>
+    <button class="pri" style="width:100%;margin-top:10px" onclick="addItem('${esc(sku)}',true)">${v.q ? '更新這筆' : '抄入'}${CUST ? '（' + esc(CUST.n) + '　' + md(DAY) + '）' : ''}</button>`);
+  setTimeout(() => { const el = document.getElementById('sn'); if (el) { el.focus(); el.select(); } }, 80);
+}
+
+/* 搜尋框按 Enter（掃描槍掃完會送 Enter）：條碼或貨號完全符合就直接打開 */
+function enterSearch() { const v = document.getElementById('q').value.trim(); if (v && lookupCode(v)) document.getElementById('q').value = ''; }
+function lookupCode(code) {
+  const c = String(code).trim().toUpperCase();
+  const hit = BYBC[c] || (BYSKU[c] ? [BYSKU[c]] : BYSKU[code] ? [BYSKU[code]] : null);
+  if (!hit) return false;
+  if (hit.length === 1) { openItem(hit[0].k); return true; }
+  document.getElementById('q').value = code; MODE = 'all'; render(); toast(`這個條碼有 ${hit.length} 個品項`); return true;
+}
+
+/* ---------------- 掃條碼（手機內建辨識優先，沒有就用 ZXing；ZXing 第一次要網路下載） ---------------- */
+let STREAM = null, SCANNING = false, ZX = null;
+const FMTS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf', 'codabar', 'qr_code'];
+// 注意：Google 送網頁時會把某些行裡的「//」當註解砍掉（整頁變空白），網址用拼的
+const ZXING_URL = ['https:', '', 'cdn.jsdelivr.net', 'npm', '@zxing', 'library@0.21.3', 'umd', 'index.min.js'].join('/');
+function loadZXing() {
+  if (window.ZXing) return Promise.resolve();
+  return new Promise((ok, bad) => { const s = document.createElement('script'); s.src = ZXING_URL; s.onload = ok; s.onerror = () => bad(new Error('載入辨識程式失敗')); document.head.appendChild(s); });
+}
+function zxReader() {
+  if (ZX) return ZX;
+  const Z = window.ZXing, hints = new Map();
+  hints.set(Z.DecodeHintType.TRY_HARDER, true);
+  hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E, Z.BarcodeFormat.CODE_128, Z.BarcodeFormat.CODE_39, Z.BarcodeFormat.ITF, Z.BarcodeFormat.CODABAR, Z.BarcodeFormat.QR_CODE]);
+  const r = new Z.MultiFormatReader(); r.setHints(hints);
+  return ZX = r;
+}
+async function decodeCanvas(cv) {
+  if ('BarcodeDetector' in window) {
+    try { const d = await new BarcodeDetector({ formats: FMTS }).detect(cv); if (d.length) return d[0].rawValue; } catch (e) {}
+  }
+  try { await loadZXing(); } catch (e) { return null; }
+  const Z = window.ZXing;
+  try { return zxReader().decode(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(cv)))).getText(); } catch (e) { return null; }
+}
+/* Google 的頁面外層不給相機權限（iframe 的 allow 沒有 camera），即時掃描開不了，
+ * 所以在 Google 頁面裡按 📷 直接叫出手機相機拍照，拍完自動辨識。單獨網站版才用即時掃描。 */
+function scanSheet(live, msg) {
+  openSheet(`<h2><span>掃條碼</span><button class="ghost" onclick="closeSheet()">關閉</button></h2>
+    ${live ? '<div class="aim" id="aimBox"><video id="vid" playsinline muted></video></div>' : ''}
+    <div id="scanMsg" class="code" style="text-align:center;margin:8px 0;font-size:14px">${msg}</div>
+    <label style="display:block;text-align:center;background:var(--pri);color:#fff;border-radius:10px;padding:12px;font-size:16px">📸 ${live ? '拍照辨識（相機開不起來時用這個）' : '再拍一次'}
+      <input type="file" accept="image/*" capture="environment" style="display:none" onchange="scanPhoto(this)"></label>
+    <div class="code" style="margin-top:6px">拍的時候：條碼橫放、佔畫面一半寬、對焦清楚、不要反光</div>
+    <div class="qrow"><input id="manual" type="search" inputmode="numeric" placeholder="或手動輸入條碼" onkeydown="if(event.key==='Enter')gotCode(this.value)"><button class="add" onclick="gotCode(document.getElementById('manual').value)">查</button></div>`);
+}
+function openScan() {
+  if (GAS) { loadZXing().catch(() => {}); return document.getElementById('photoIn').click(); }
+  scanSheet(true, '把條碼對準紅線');
+  startCam();
+}
+function photoPicked(inp) { scanSheet(false, '辨識中…'); scanPhoto(inp); }
+async function startCam() {
+  const msg = document.getElementById('scanMsg');
+  try { STREAM = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }, audio: false }); }
+  catch (e) { document.getElementById('aimBox').classList.add('hide'); msg.textContent = '這裡開不了即時相機，請按下面「拍照辨識」'; return; }
+  const v = document.getElementById('vid'); v.srcObject = STREAM; await v.play().catch(() => {});
+  SCANNING = true;
+  const cv = document.createElement('canvas'), ctx = cv.getContext('2d', { willReadFrequently: true });
+  loadZXing().catch(() => {});
+  const tick = async () => {
+    if (!SCANNING) return;
+    if (v.videoWidth) {
+      const w = v.videoWidth, hh = Math.round(v.videoHeight * 0.4);
+      cv.width = w; cv.height = hh;
+      ctx.drawImage(v, 0, Math.round((v.videoHeight - hh) / 2), w, hh, 0, 0, w, hh);
+      const code = await decodeCanvas(cv);
+      if (code && SCANNING) { if (navigator.vibrate) navigator.vibrate(80); return gotCode(code); }
+    }
+    setTimeout(tick, 200);
+  };
+  tick();
+}
+function stopCam() { SCANNING = false; if (STREAM) { STREAM.getTracks().forEach(t => t.stop()); STREAM = null; } }
+async function scanPhoto(inp) {
+  const f = inp.files && inp.files[0]; if (!f) return;
+  const msg = document.getElementById('scanMsg'); msg.textContent = '辨識中…';
+  const img = new Image(); img.src = URL.createObjectURL(f); inp.value = "";
+  await new Promise(r => { img.onload = r; img.onerror = r; });
+  const cv = document.createElement('canvas'), ctx = cv.getContext('2d', { willReadFrequently: true });
+  for (const max of [1600, 1000, 2400]) for (const rot of [0, 90]) {
+    const s = Math.min(1, max / Math.max(img.width, img.height)), w = Math.round(img.width * s), h = Math.round(img.height * s);
+    cv.width = rot ? h : w; cv.height = rot ? w : h;
+    ctx.save(); if (rot) { ctx.translate(h, 0); ctx.rotate(Math.PI / 2); } ctx.drawImage(img, 0, 0, w, h); ctx.restore();
+    const code = await decodeCanvas(cv);
+    if (code) return gotCode(code);
+  }
+  msg.innerHTML = '<b style="color:var(--bad)">認不出來</b>，請再拍一次（拍近一點、條碼橫放、對焦清楚），或手動輸入';
+  inp.value = '';
+}
+function gotCode(code) {
+  code = String(code || '').trim(); if (!code) return;
+  stopCam();
+  if (!lookupCode(code)) { closeSheet(); document.getElementById('q').value = code; MODE = 'all'; render(); toast('AIERP 找不到條碼 ' + code); }
+}
+
+/* ---------------- 成本（要按才顯示，不存手機） ---------------- */
+async function toggleCost() {
+  if (!showCost && !COSTS) {
+    toast('讀取成本…');
+    try { COSTS = (await call('costs')).data; } catch (e) { return toast(e.net ? '沒有網路，看不到成本' : '讀不到成本：' + e.message); }
+  }
+  showCost = !showCost;
+  document.body.classList.toggle('nocost', !showCost);
+  document.getElementById('costBtn').textContent = showCost ? '隱藏成本' : '顯示成本';
+  render(); updateCart();
+  if (!document.getElementById('sheet').classList.contains('hide') && document.getElementById('qsum')) openOrder();
+}
+
+/* ---------------- 抄貨單畫面 ---------------- */
+function totals(o) {
+  let t = 0, c = 0, n = 0, cMissing = false;
+  (o ? o.items : []).forEach(x => { const k = Number(x.n) || 0, p = Number(x.q) || 0, cc = COSTS && COSTS[x.code]; t += p * k; n += k; if (cc == null) cMissing = true; else c += cc * k; });
+  return { total: t, qty: n, cost: c, profit: t - c, margin: t > 0 && COSTS ? Math.round((t - c) / t * 1000) / 10 : null, cMissing };
+}
+function updateCart() {
+  const el = document.getElementById('cart'), o = curOrder();
+  if (!o || !o.items.length) return el.classList.add('hide');
+  const s = totals(o);
+  el.classList.remove('hide');
+  document.getElementById('cartT').innerHTML = `${esc(o.cust.n)}｜${md(o.date)} 抄 ${o.items.length} 項｜${money(s.total)}<span class="cst">｜毛利 ${mgTxt(s.margin)}</span><br><span style="font-size:12px;opacity:.8">${o.dirty ? '⏳ 存在手機，等上傳' : '✓ 已上傳 ' + esc(o.no)}</span>`;
+}
+function openOrder(id) {
+  const o = id ? ORDERS.find(x => x.id === id) : curOrder();
+  if (!o) return toast('這個客戶這天還沒抄貨');
+  if (id && (o.cust.k !== (CUST && CUST.k) || o.date !== DAY)) { CUST = o.cust; LS.set('cust', CUST); DAY = o.date; document.getElementById('day').value = DAY; drawCust(); useCust(); render(); }
+  const s = totals(o), mine = o.sales === WHO.name;
+  openSheet(`<h2><span>${esc(o.cust.n)}｜${dayTxt(o.date)}</span><button class="ghost" onclick="closeSheet()">關閉</button></h2>
+    <div class="code">${o.no ? '單號 ' + esc(o.no) : '還沒有單號（上傳後產生）'}｜${esc(o.sales)}｜<span class="badge ${o.dirty ? 'wait' : 'ok'}">${o.dirty ? '存在手機，等上傳' : '已上傳'}</span></div>
+    ${mine ? '' : '<div class="last">這張是 ' + esc(o.sales) + ' 抄的，只能看</div>'}
+    <textarea rows="2" style="margin-top:8px" placeholder="備註（交期、運費…）" ${mine ? '' : 'disabled'} oninput="ORD.note=this.value;touch(ORD)">${esc(o.note)}</textarea>
+    <div>${o.items.map((x, i) => {
+      const c = COSTS && COSTS[x.code], m = mgOf(Number(x.q), c), it = BYSKU[x.code];
+      return `<div class="qi">
+        <div class="nm" style="font-size:14px">${esc(x.name)}</div>
+        <div class="code">${esc(x.code)}${it ? '｜庫存 ' + numTxt(it.oh) + ' ' + esc(it.u) : ''}<span class="cst">｜成本 ${money(c)}</span></div>
+        <div class="qrow">
+          <label>數量</label><input class="n" type="number" inputmode="decimal" value="${esc(x.n)}" ${mine ? '' : 'disabled'} oninput="setQ(${i},'n',this.value)">
+          <label>單價</label><input class="p" type="number" inputmode="decimal" value="${esc(x.q)}" ${mine ? '' : 'disabled'} oninput="setQ(${i},'q',this.value)">
+          ${mine ? `<button class="ghost" style="color:var(--bad)" onclick="delQ(${i})">刪</button>` : ''}
+        </div>
+        <div style="font-size:13px;margin-top:4px">小計 <b id="st${i}">${money((Number(x.q) || 0) * (Number(x.n) || 0))}</b>
+          <span class="cst">｜毛利 <span id="qm${i}" class="mg ${mgCls(m)}">${mgTxt(m)}</span></span></div>
+      </div>`;
+    }).join('') || '<div class="center">還沒有品項</div>'}</div>
+    <div class="sum" id="qsum">${sumHtml(s)}</div>
+    <div class="row"><button class="pri" onclick="closeSheet();syncNow(true)">完成並上傳</button><button onclick="custView()">客戶版</button></div>
+    <div class="row"><button onclick="copyText()">複製文字（貼 LINE）</button>${mine ? '<button class="danger" onclick="delOrder()">刪除這張單</button>' : ''}</div>
+    <div class="row"><button onclick="excel('cust')">Excel（客戶版）</button><button class="cst" onclick="excel('inner')">Excel（內部含毛利）</button></div>`);
+  window.ORD = o;
+}
+function sumHtml(s) {
+  return `<div><span>數量合計</span><span>${numTxt(s.qty)}</span></div><div><span>金額</span><b>${money(s.total)}</b></div>
+    <div class="cst"><span>成本總額</span><span>${money(s.cost)}${s.cMissing ? '（有品項沒成本）' : ''}</span></div>
+    <div class="cst"><span>毛利</span><b>${money(s.profit)}｜<span class="mg ${mgCls(s.margin)}">${mgTxt(s.margin)}</span></b></div>`;
+}
+function setQ(i, k, v) {
+  const o = ORD, x = o.items[i]; x[k] = v; touch(o);
+  document.getElementById('st' + i).textContent = money((Number(x.q) || 0) * (Number(x.n) || 0));
+  const m = mgOf(Number(x.q), COSTS && COSTS[x.code]), el = document.getElementById('qm' + i);
+  el.textContent = mgTxt(m); el.className = 'mg ' + mgCls(m);
+  document.getElementById('qsum').innerHTML = sumHtml(totals(o));
+}
+function delQ(i) { ORD.items.splice(i, 1); touch(ORD); render(); openOrder(ORD.id); }
+function delOrder() {
+  if (!confirm(`刪除 ${ORD.cust.n} ${md(ORD.date)} 這張抄貨單？`)) return;
+  ORD.del = true; ORD.items = []; touch(ORD); closeSheet(); render(); toast('已刪除');
+}
+function orderText(o) {
+  const s = totals(o);
+  const lines = [`【訂貨單】${o.cust.n}　${ymd(o.date)}`];
+  o.items.forEach((x, i) => lines.push(`${i + 1}. ${x.name}\n   ${x.n}${x.unit ? ' ' + x.unit : ''}${x.q !== '' && x.q != null ? ' × ' + money(Number(x.q)) + ' = ' + money((Number(x.q) || 0) * (Number(x.n) || 0)) : ''}`));
+  lines.push(`合計：${money(s.total)}`);
+  if (o.note) lines.push('備註：' + o.note);
+  return lines.join('\n');
+}
+function copyText() {
+  const t = orderText(ORD);
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('已複製，可貼到 LINE'))
+    .catch(() => openSheet(`<h2><span>長按全選複製</span><button class="ghost" onclick="openOrder(ORD.id)">返回</button></h2><textarea rows="14">${esc(t)}</textarea>`));
+}
+function custView() {
+  const o = ORD, s = totals(o);
+  openSheet(`<div class="ccard"><h3>訂貨單</h3>
+    <div class="d">${esc(o.cust.n)}　${ymd(o.date)}${o.no ? '　' + esc(o.no) : ''}</div>
+    ${o.items.map(x => `<div class="ci"><div style="flex:1"><div style="font-weight:600">${esc(x.name)}</div><div class="code">${esc(x.code)}</div></div>
+      <div class="r">${money(Number(x.q))} × ${esc(x.n)}${x.unit ? ' ' + esc(x.unit) : ''}<br><b>${money((Number(x.q) || 0) * (Number(x.n) || 0))}</b></div></div>`).join('')}
+    <div class="ctot">合計 ${money(s.total)}</div>
+    ${o.note ? `<div style="white-space:pre-wrap;margin-top:10px;font-size:14px">備註：${esc(o.note)}</div>` : ''}
+    <div style="text-align:center;color:var(--sub);font-size:12px;margin-top:16px">（這頁不含成本，可直接截圖給客戶）</div>
+    <div class="row"><button onclick="openOrder(ORD.id)">返回</button></div></div>`);
+}
+async function excel(mode) {
+  const o = ORD; if (!o.items.length) return toast('這張單沒有品項');
+  toast('產生 Excel 中，約 10 秒…');
+  try {
+    const quote = { id: o.no, customer: o.cust.n, note: o.note, items: o.items.map(x => ({ tab: 'erp', code: x.code, name: x.name, q: x.q, n: x.n })) };
+    const r = await call('excel', { quote, mode, who: { name: o.sales } });
+    const bin = atob(r.data.b64), arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    const blob = new Blob([arr], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const file = new File([blob], r.data.name.replace('報價單', '訂貨單'), { type: blob.type });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: file.name }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = file.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    toast('已下載 ' + file.name);
+  } catch (e) { toast(e.net ? '沒有網路，Excel 要有網路才能做' : 'Excel 產生失敗：' + e.message); }
+}
+
+/* ---------------- 抄貨紀錄：依日期 → 客戶 ---------------- */
+let OFILTER = 'mine';
+function openOrders() {
+  const list = ORDERS.filter(o => !o.del && (OFILTER === 'all' || o.sales === WHO.name));
+  const days = [...new Set(list.map(o => o.date))].sort().reverse();
+  const pend = ORDERS.filter(o => o.dirty).length;
+  openSheet(`<h2><span>抄貨紀錄</span><button class="ghost" onclick="closeSheet()">關閉</button></h2>
+    <div class="chips" style="margin-bottom:6px">
+      <button class="${OFILTER === 'mine' ? 'on' : ''}" onclick="OFILTER='mine';openOrders()">我抄的</button>
+      <button class="${OFILTER === 'all' ? 'on' : ''}" onclick="OFILTER='all';openOrders()">全部業務</button>
+      <button onclick="refreshOrders()">↻ 跟雲端對一次</button>
+    </div>
+    <div class="code">${pend ? `⏳ ${pend} 張還在手機，有網路會自動上傳` : '✓ 手機上的都已上傳'}｜手機保留近 60 天</div>
+    ${days.map(d => {
+      const os = list.filter(o => o.date === d).sort((a, b) => a.cust.n.localeCompare(b.cust.n));
+      const dt = os.reduce((m, o) => m + totals(o).total, 0);
+      return `<div class="day">${dayTxt(d)}　${os.length} 個客戶　${money(dt)}</div>` + os.map(o => {
+        const s = totals(o), cur = CUST && o.cust.k === CUST.k && o.date === DAY && o.sales === WHO.name;
+        return `<div class="ord ${cur ? 'cur' : ''}" onclick="openOrder('${o.id}')">
+          <div style="display:flex;gap:8px;align-items:center"><b style="flex:1">${esc(o.cust.n)}</b><span>${money(s.total)}</span></div>
+          <div class="code" style="display:flex;gap:6px;align-items:center"><span style="flex:1">${o.items.length} 項｜數量 ${numTxt(s.qty)}${OFILTER === 'all' ? '｜' + esc(o.sales) : ''}${o.no ? '｜' + esc(o.no) : ''}</span>
+            <span class="badge ${o.dirty ? 'wait' : 'ok'}">${o.dirty ? '待上傳' : '已上傳'}</span></div></div>`;
+      }).join('');
+    }).join('') || '<div class="center">還沒有抄貨單</div>'}`);
+}
+async function refreshOrders() {
+  toast('同步中…');
+  await syncNow();
+  try { await pullOrders(); toast('已跟雲端對過'); } catch (e) { toast(e.net ? '沒有網路' : e.message); }
+  openOrders();
+}
+
+function openSheet(html) { document.getElementById('panel').innerHTML = html; document.getElementById('sheet').classList.remove('hide'); document.getElementById('panel').scrollTop = 0; }
+function closeSheet() { stopCam(); document.getElementById('sheet').classList.add('hide'); render(); updateCart(); }
+
+/* ---------------- 開始 ---------------- */
+// 存過密碼就直接用手機上的資料開（沒網路也行），登入紀錄在背景補送
+if (PIN && WHO.name) { boot(); logIn().catch(() => {}); }
+else showLogin();
+</script>
+<script>
+// 離線快取：沒訊號也能打開這一頁（網站版 524a98cbd5）
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
