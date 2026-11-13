@@ -58,9 +58,10 @@ header{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid v
 .cart .t{flex:1;font-size:14px;min-width:0}
 .cart button{background:#fff;color:#111827;font-weight:600}
 body.typing .cart{display:none!important}
-body.typing header{position:relative}
 .sheet{position:fixed;inset:0;z-index:10;background:rgba(0,0,0,.4);display:flex;align-items:flex-end}
 .panel{background:#fff;width:100%;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:14px 14px 24px}
+.sheet{top:var(--vvt,0px);height:var(--vvh,100%);bottom:auto}
+.panel{max-height:calc(var(--vvh,100vh) - 16px)}
 .panel h2{font-size:17px;margin:0 0 8px;display:flex;align-items:center;gap:8px}
 .panel h2 span{flex:1}
 .kv{display:grid;grid-template-columns:88px 1fr;gap:6px 10px;margin:10px 0;font-size:14px}
@@ -139,7 +140,7 @@ body.typing header{position:relative}
 </div>
 
 <input type="file" id="photoIn" accept="image/*" capture="environment" style="display:none" onchange="photoPicked(this)">
-<div id="sheet" class="sheet hide" onclick="if(event.target===this)closeSheet()"><div class="panel" id="panel"></div></div>
+<div id="sheet" class="sheet hide" onclick="if(event.target===this){if(document.body.classList.contains('typing'))document.activeElement.blur();else closeSheet();}"><div class="panel" id="panel"></div></div>
 
 <script>
 /* ============================================================================
@@ -267,7 +268,7 @@ async function refreshData(force) {
   }
   if (force || v.hist !== have.hist) { HALL = (await call('hist')).data || {}; await IDB.set('hist', HALL); }
   LS.set('ver', v);
-  useCust(); render();
+  useCust(); softRender();
   pullOrders().catch(() => {});
 }
 function useSnap(s) {
@@ -386,7 +387,33 @@ function autoExact() {
 }
 /* 打字時鍵盤會把下面的抄貨單條推上來擋住品項 → 打字時先藏起來 */
 document.addEventListener('focusin', e => { if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && e.target.type !== 'date') document.body.classList.add('typing'); });
-document.addEventListener('focusout', () => setTimeout(() => { const a = document.activeElement; if (!a || !/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) document.body.classList.remove('typing'); }, 100));
+document.addEventListener('focusout', () => setTimeout(() => {
+  const a = document.activeElement;
+  if (!a || !/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) document.body.classList.remove('typing');
+  if (render.later && !(a && a.tagName === 'INPUT' && a.closest('#list'))) render();
+}, 100));
+/* 清單裡的數量／單價：等鍵盤出來，把這格捲到「上面固定區塊」和「鍵盤」中間 */
+document.addEventListener('focusin', e => {
+  const el = e.target;
+  if (el.tagName !== 'INPUT' || !el.closest('#list')) return;
+  setTimeout(() => {
+    if (document.activeElement !== el) return;
+    const vv = window.visualViewport, top = document.querySelector('header').getBoundingClientRect().bottom + 8;
+    const bottom = (vv ? vv.height + vv.offsetTop : innerHeight) - 12, card = el.closest('.item') || el;
+    const r = el.getBoundingClientRect(), cr = card.getBoundingClientRect();
+    if (r.top >= top && r.bottom <= bottom) return;
+    // 盡量讓整張卡片露出來，放不下就以欄位為準
+    let dy = cr.bottom - bottom; if (cr.top - dy < top) dy = r.bottom - bottom;
+    if (r.top - dy < top) dy = r.top - top;
+    window.scrollBy(0, dy);
+  }, 350);
+});
+/* 鍵盤出來時，跳出的視窗跟著可見範圍縮，不會被推走 */
+if (window.visualViewport) {
+  const fit = () => { const vv = window.visualViewport, st = document.documentElement.style;
+    st.setProperty('--vvh', vv.height + 'px'); st.setProperty('--vvt', vv.offsetTop + 'px'); };
+  visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); fit();
+}
 function matches() {
   const q = document.getElementById('q').value.trim().toLowerCase();
   let arr = SNAP.items;
@@ -398,8 +425,15 @@ function matches() {
   else if (MODE === 'recent') arr = arr.slice().sort((a, b) => (b.d[0] || '').localeCompare(a.d[0] || ''));
   return arr;
 }
+/* 背景更新資料用這個：正在清單裡打數量／單價就等打完再重畫，不然打到一半欄位會被換掉 */
+function softRender() {
+  const a = document.activeElement;
+  if (a && a.tagName === 'INPUT' && a.closest('#list')) { render.later = true; return; }
+  render();
+}
 function render() {
   if (!SNAP) return;
+  render.later = false;
   drawChips();
   const arr = matches();
   document.getElementById('meta').textContent = `${arr.length} 項｜AIERP 資料 ${String(SNAP.at).slice(5, 16)}｜銷售到 ${ymd(SNAP.lastSale).slice(5)}`;
@@ -469,12 +503,12 @@ function openItem(sku) {
     ['成本', COSTS ? money(c) : '', 'cst']].filter(x => x[1]);
   openSheet(`<h2><span>${esc(it.n)}</span><button class="ghost" onclick="closeSheet()">關閉</button></h2>
     ${h ? `<div class="last">${esc(CUST.n)} 上次 ${ymd(h[0])}（${ago(h[0])}）叫 <b>${numTxt(h[1])}</b> ${esc(it.u)}，單價 ${money(h[2])}，兩年內 ${h[3]} 次</div>` : CUST ? `<div class="last">${esc(CUST.n)} 兩年內沒叫過這個</div>` : '<div class="last">還沒選客戶</div>'}
-    <div class="kv">${kv.map(x => `<div class="${x[2] || ''}">${x[0]}</div><div class="${x[2] || ''}">${x[1]}</div>`).join('')}</div>
     <div class="qrow">
       <label>數量</label><input class="n" id="sn" type="number" inputmode="decimal" value="${esc(v.n)}" placeholder="輸入數量" onkeydown="if(event.key==='Enter')addItem('${esc(sku)}',true)">
       <label>單價</label><input class="p" type="number" inputmode="decimal" value="${esc(v.p)}">
     </div>
-    <button class="pri" style="width:100%;margin-top:10px" onclick="addItem('${esc(sku)}',true)">${v.q ? '更新這筆' : '抄入'}${CUST ? '（' + esc(CUST.n) + '　' + md(DAY) + '）' : ''}</button>`);
+    <button class="pri" style="width:100%;margin-top:10px" onclick="addItem('${esc(sku)}',true)">${v.q ? '更新這筆' : '抄入'}${CUST ? '（' + esc(CUST.n) + '　' + md(DAY) + '）' : ''}</button>
+    <div class="kv">${kv.map(x => `<div class="${x[2] || ''}">${x[0]}</div><div class="${x[2] || ''}">${x[1]}</div>`).join('')}</div>`);
   setTimeout(() => { const el = document.getElementById('sn'); if (el) { el.focus(); el.select(); } }, 80);
 }
 
@@ -748,7 +782,7 @@ if (PIN && WHO.name) { boot(); logIn().catch(() => {}); }
 else showLogin();
 </script>
 <script>
-// 離線快取：沒訊號也能打開這一頁（網站版 fb68f9bcf1）
+// 離線快取：沒訊號也能打開這一頁（網站版 dd02ea9d0e）
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
