@@ -26,6 +26,7 @@ header{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid v
 .cust b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cust.none b{color:var(--sub);font-weight:400}
 .crow input[type=date]{width:136px;flex:0 0 auto;padding:7px 8px;font-size:14px}
+.crow select{flex:0 0 auto;width:auto;max-width:96px;padding:7px 6px;font-size:14px}
 .tools{display:flex;gap:6px;margin-top:6px}
 .tools input[type=search]{flex:1;min-width:0;width:auto;font-size:16px}
 .scan{flex:0 0 auto;background:var(--pri);color:#fff;font-size:15px;padding:9px 12px}
@@ -123,6 +124,7 @@ body.typing .cart{display:none!important}
     </div>
     <div class="crow">
       <div class="cust none" id="custBar" onclick="pickCust()"><span>客戶</span><b id="custName">點這裡選客戶</b><span>▾</span></div>
+      <select id="coSel" class="hide" onchange="setCo(this.value)"></select>
       <input type="date" id="day" onchange="setDay(this.value)">
     </div>
     <div class="tools">
@@ -186,6 +188,30 @@ let SNAP = null, BYSKU = {}, BYBC = {}, HALL = {}, HIST = {}, COSTS = null, show
 let CUST = LS.get('cust', null);
 let DAY = today(), MODE = 'recent', LIMIT = 60, ONLINE = navigator.onLine;
 let ORDERS = LS.get('orders', []);
+/* 多公司：抄貨單開在哪家公司。預設主公司（景麒），要開在別家就用客戶列旁邊的選單改。
+ * 雲端資料裡有兩家以上公司才會出現選單；舊的單子沒有公司，一律當主公司。 */
+let CO = '';
+const COMPANIES = () => (SNAP && SNAP.companies) || [];
+const MULTI = () => COMPANIES().length > 1;
+const PRIMARY = () => { const c = COMPANIES().find(x => x.p); return c ? c.k : ''; };
+const coOf = o => o.co || PRIMARY();
+const coName = k => { const c = COMPANIES().find(x => x.k === (k || PRIMARY())); return c ? c.n : ''; };
+function drawCo() {
+  const el = document.getElementById('coSel'); if (!el) return;
+  const cs = COMPANIES();
+  el.classList.toggle('hide', cs.length < 2);
+  if (cs.length < 2) return;
+  el.innerHTML = cs.map(c => `<option value="${esc(c.k)}">${esc(c.n)}</option>`).join('');
+  el.value = CO;
+}
+function setCo(k) { CO = k; render(); updateCart(); toast('開單公司：' + coName(k)); }
+/* 換客戶、換日期：回到預設的主公司；這個客戶這天已經有開在別家的單，就跟著那張 */
+function syncCo() {
+  const p = PRIMARY();
+  const mine = CUST ? ORDERS.filter(x => !x.del && x.cust.k === CUST.k && x.date === DAY && x.sales === WHO.name) : [];
+  CO = !mine.length ? p : mine.some(x => coOf(x) === p) ? p : coOf(mine[0]);
+  drawCo();
+}
 
 function today() { return new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10); }
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -251,7 +277,7 @@ async function boot() {
   document.getElementById('day').value = DAY;
   drawCust(); updateCart(); setNet(navigator.onLine);
   const cached = await IDB.get('snap');
-  if (cached) { useSnap(cached); HALL = (await IDB.get('hist')) || {}; useCust(); render(); }
+  if (cached) { useSnap(cached); HALL = (await IDB.get('hist')) || {}; useCust(); syncCo(); render(); }
   else document.getElementById('list').innerHTML = '<div class="center">第一次使用，下載 AIERP 品項中（約 1MB）…</div>';
   try {
     await refreshData(!cached);
@@ -277,6 +303,8 @@ function useSnap(s) {
     BYSKU[it.k] = it;
     String(it.b || '').split(/[\s,;／/]+/).filter(Boolean).forEach(b => { (BYBC[b.toUpperCase()] ||= []).push(it); });
   });
+  if (!COMPANIES().some(c => c.k === CO)) CO = PRIMARY();
+  drawCo();
 }
 function useCust() { HIST = CUST ? HALL[CUST.k] || {} : {}; if (CUST && MODE === 'recent' && Object.keys(HIST).length && !document.getElementById('q').value) MODE = 'cust'; }
 
@@ -284,9 +312,9 @@ function useCust() { HIST = CUST ? HALL[CUST.k] || {} : {}; if (CUST && MODE ===
 function saveOrders() { LS.set('orders', ORDERS); updateCart(); setNet(ONLINE); }
 function curOrder(create) {
   if (!CUST) return null;
-  let o = ORDERS.find(x => !x.del && x.cust.k === CUST.k && x.date === DAY && x.sales === WHO.name);
+  let o = ORDERS.find(x => !x.del && x.cust.k === CUST.k && x.date === DAY && x.sales === WHO.name && coOf(x) === CO);
   if (!o && create) {
-    o = { id: 'O' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), no: '', date: DAY, cust: { k: CUST.k, n: CUST.n }, sales: WHO.name, note: '', items: [], upd: Date.now(), dirty: true };
+    o = { id: 'O' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), no: '', date: DAY, cust: { k: CUST.k, n: CUST.n }, sales: WHO.name, co: CO, note: '', items: [], upd: Date.now(), dirty: true };
     ORDERS.push(o);
   }
   return o;
@@ -301,7 +329,7 @@ async function syncNow(manual) {
   if (!pend.length) { if (manual) { toast('全部都已上傳'); pullOrders().catch(() => {}); } return; }
   SYNCING = true;
   try {
-    const sent = pend.map(o => ({ id: o.id, date: o.date, cust: o.cust, sales: o.sales, note: o.note, items: o.items, upd: o.upd, del: !!o.del, fin: o.fin || 0 }));
+    const sent = pend.map(o => ({ id: o.id, date: o.date, cust: o.cust, sales: o.sales, note: o.note, items: o.items, upd: o.upd, del: !!o.del, fin: o.fin || 0, co: o.co || '' }));
     const r = (await call('syncOrders', { orders: sent, dev: deviceName() })).data;
     r.forEach(x => {
       const o = ORDERS.find(y => y.id === x.id); if (!o) return;
@@ -359,9 +387,9 @@ function setCust(k, name) {
   CUST = k ? { k, n: c ? c.n || c.s : name || k } : null;
   LS.set('cust', CUST);
   closeSheet(); drawCust();
-  MODE = 'recent'; useCust(); LIMIT = 60; render(); updateCart();
+  MODE = 'recent'; useCust(); LIMIT = 60; syncCo(); render(); updateCart();
 }
-function setDay(d) { DAY = d || today(); document.getElementById('day').value = DAY; render(); updateCart(); }
+function setDay(d) { DAY = d || today(); document.getElementById('day').value = DAY; syncCo(); render(); updateCart(); }
 
 /* ---------------- 列表 ---------------- */
 function drawChips() {
@@ -563,7 +591,7 @@ function scanSheet(live, msg) {
     <div id="scanMsg" class="code" style="text-align:center;margin:8px 0;font-size:14px">${msg}</div>
     ${GAS ? `<a href="${SITE_URL}" target="_blank" style="display:block;text-align:center;background:#1d4ed8;color:#fff;border-radius:10px;padding:12px;font-size:16px;margin-bottom:8px;text-decoration:none">🎥 改用網站版（對著條碼直接掃）</a>` : ''}
     <label style="display:block;text-align:center;background:var(--pri);color:#fff;border-radius:10px;padding:12px;font-size:16px">📸 ${live ? '拍照辨識（相機開不起來時用這個）' : '再拍一次'}
-      <input type="file" accept="image/*" capture="environment" style="display:none" onchange="scanPhoto(this)"></label>
+      <input type="file" accept="image/&#42;" capture="environment" style="display:none" onchange="scanPhoto(this)"></label>
     <div class="code" style="margin-top:6px">拍的時候：條碼橫放、佔畫面一半寬、對焦清楚、不要反光</div>
     <div class="qrow"><input id="manual" type="search" inputmode="numeric" placeholder="或手動輸入條碼" onkeydown="if(event.key==='Enter')gotCode(this.value)"><button class="add" onclick="gotCode(document.getElementById('manual').value)">查</button></div>`);
 }
@@ -650,16 +678,19 @@ function updateCart() {
   if (!o || !o.items.length) return el.classList.add('hide');
   const s = totals(o);
   el.classList.remove('hide');
-  document.getElementById('cartT').innerHTML = `${esc(o.cust.n)}｜${md(o.date)} 抄 ${o.items.length} 項｜${money(s.total)}<span class="cst">｜毛利 ${mgTxt(s.margin)}</span><br><span style="font-size:12px;opacity:.8">${o.dirty ? '⏳ 存在手機，等上傳' : '✓ 已上傳 ' + esc(o.no)}</span>`;
+  document.getElementById('cartT').innerHTML = `${MULTI() ? esc(coName(o.co)) + '｜' : ''}${esc(o.cust.n)}｜${md(o.date)} 抄 ${o.items.length} 項｜${money(s.total)}<span class="cst">｜毛利 ${mgTxt(s.margin)}</span><br><span style="font-size:12px;opacity:.8">${o.dirty ? '⏳ 存在手機，等上傳' : '✓ 已上傳 ' + esc(o.no)}</span>`;
 }
 function openOrder(id) {
   const o = id ? ORDERS.find(x => x.id === id) : curOrder();
   if (!o) return toast('這個客戶這天還沒抄貨');
+  if (id) { CO = coOf(o); drawCo(); }
   if (id && (o.cust.k !== (CUST && CUST.k) || o.date !== DAY)) { CUST = o.cust; LS.set('cust', CUST); DAY = o.date; document.getElementById('day').value = DAY; drawCust(); useCust(); render(); }
   const s = totals(o), mine = o.sales === WHO.name;
   openSheet(`<h2><span>${esc(o.cust.n)}｜${dayTxt(o.date)}</span><button class="ghost" onclick="closeSheet()">關閉</button></h2>
     <div class="code">${o.no ? '單號 ' + esc(o.no) : '還沒有單號（上傳後產生）'}｜${esc(o.sales)}｜<span class="badge ${o.dirty ? 'wait' : 'ok'}">${o.dirty ? '存在手機，等上傳' : '已上傳'}</span>｜${o.fin ? '<span class="badge ok">已按完成，公司會收到 LINE</span>' : '<span class="badge wait">還沒按完成，公司不知道</span>'}</div>
     ${mine ? '' : '<div class="last">這張是 ' + esc(o.sales) + ' 抄的，只能看</div>'}
+    ${MULTI() ? `<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><label style="white-space:nowrap">開單公司</label>
+      <select ${mine ? '' : 'disabled'} onchange="setOrderCo(this.value)">${COMPANIES().map(c => `<option value="${esc(c.k)}" ${coOf(o) === c.k ? 'selected' : ''}>${esc(c.n)}</option>`).join('')}</select></div>` : ''}
     <textarea rows="2" style="margin-top:8px" placeholder="備註（交期、運費…）" ${mine ? '' : 'disabled'} oninput="ORD.note=this.value;touch(ORD)">${esc(o.note)}</textarea>
     <div>${o.items.map((x, i) => {
       const c = COSTS && COSTS[x.code], m = mgOf(Number(x.q), c), it = BYSKU[x.code];
@@ -702,6 +733,14 @@ function shippedRecently(sku) {
   const it = BYSKU[sku];
   return `${it ? it.n : sku}：${md(h[0])} 已出 ${numTxt(h[1])} ${it ? it.u : ''}`;
 }
+/* 改這張單開在哪家公司。同一個客戶同一天在那家已經有單就不能改（會變成兩張一樣的） */
+function setOrderCo(k) {
+  const o = ORD;
+  if (ORDERS.some(x => x !== o && !x.del && x.cust.k === o.cust.k && x.date === o.date && x.sales === o.sales && coOf(x) === k)) {
+    toast('這個客戶這天在「' + coName(k) + '」已經有一張單了'); return openOrder(o.id);
+  }
+  o.co = k; touch(o); CO = k; drawCo(); render(); updateCart(); openOrder(o.id);
+}
 function sumHtml(s) {
   return `<div><span>數量合計</span><span>${numTxt(s.qty)}</span></div><div><span>金額</span><b>${money(s.total)}</b></div>
     <div class="cst"><span>成本總額</span><span>${money(s.cost)}${s.cMissing ? '（有品項沒成本）' : ''}</span></div>
@@ -722,6 +761,7 @@ function delOrder() {
 function orderText(o) {
   const s = totals(o);
   const lines = [`【訂貨單】${o.cust.n}　${ymd(o.date)}`];
+  if (MULTI()) lines.push('開單公司：' + coName(o.co));
   o.items.forEach((x, i) => lines.push(`${i + 1}. ${x.name}\n   ${x.n}${x.unit ? ' ' + x.unit : ''}${x.q !== '' && x.q != null ? ' × ' + money(Number(x.q)) + ' = ' + money((Number(x.q) || 0) * (Number(x.n) || 0)) : ''}`));
   lines.push(`合計：${money(s.total)}`);
   if (o.note) lines.push('備註：' + o.note);
@@ -735,7 +775,7 @@ function copyText() {
 function custView() {
   const o = ORD, s = totals(o);
   openSheet(`<div class="ccard"><h3>訂貨單</h3>
-    <div class="d">${esc(o.cust.n)}　${ymd(o.date)}${o.no ? '　' + esc(o.no) : ''}</div>
+    <div class="d">${MULTI() ? esc(coName(o.co)) + '　' : ''}${esc(o.cust.n)}　${ymd(o.date)}${o.no ? '　' + esc(o.no) : ''}</div>
     ${o.items.map(x => `<div class="ci"><div style="flex:1"><div style="font-weight:600">${esc(x.name)}</div><div class="code">${esc(x.code)}</div></div>
       <div class="r">${money(Number(x.q))} × ${esc(x.n)}${x.unit ? ' ' + esc(x.unit) : ''}<br><b>${money((Number(x.q) || 0) * (Number(x.n) || 0))}</b></div></div>`).join('')}
     <div class="ctot">合計 ${money(s.total)}</div>
@@ -787,10 +827,10 @@ function openOrders() {
       const os = list.filter(o => o.date === d).sort((a, b) => a.cust.n.localeCompare(b.cust.n));
       const dt = os.reduce((m, o) => m + totals(o).total, 0);
       return `<div class="day">${dayTxt(d)}　${os.length} 個客戶　${money(dt)}</div>` + os.map(o => {
-        const s = totals(o), cur = CUST && o.cust.k === CUST.k && o.date === DAY && o.sales === WHO.name;
+        const s = totals(o), cur = CUST && o.cust.k === CUST.k && o.date === DAY && o.sales === WHO.name && coOf(o) === CO;
         return `<div class="ord ${cur ? 'cur' : ''}" onclick="openOrder('${o.id}')">
           <div style="display:flex;gap:8px;align-items:center"><b style="flex:1">${esc(o.cust.n)}</b><span>${money(s.total)}</span></div>
-          <div class="code" style="display:flex;gap:6px;align-items:center"><span style="flex:1">${o.items.length} 項｜數量 ${numTxt(s.qty)}${OFILTER === 'all' ? '｜' + esc(o.sales) : ''}${o.no ? '｜' + esc(o.no) : ''}</span>
+          <div class="code" style="display:flex;gap:6px;align-items:center"><span style="flex:1">${MULTI() ? esc(coName(o.co)) + '｜' : ''}${o.items.length} 項｜數量 ${numTxt(s.qty)}${OFILTER === 'all' ? '｜' + esc(o.sales) : ''}${o.no ? '｜' + esc(o.no) : ''}</span>
             <span class="badge ${o.dirty ? 'wait' : 'ok'}">${o.dirty ? '待上傳' : '已上傳'}</span>${o.fin ? '' : '<span class="badge wait">未按完成</span>'}</div></div>`;
       }).join('');
     }).join('') || '<div class="center">還沒有抄貨單</div>'}`);
@@ -811,7 +851,7 @@ if (PIN && WHO.name) { boot(); logIn().catch(() => {}); }
 else showLogin();
 </script>
 <script>
-// 離線快取：沒訊號也能打開這一頁（網站版 1f09708437）
+// 離線快取：沒訊號也能打開這一頁（網站版 c7616de7e0）
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
