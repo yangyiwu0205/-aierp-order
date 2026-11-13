@@ -57,6 +57,8 @@ header{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid v
 .cart{position:fixed;left:10px;right:10px;bottom:10px;z-index:6;display:flex;align-items:center;gap:10px;background:#111827;color:#fff;border-radius:14px;padding:10px 14px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
 .cart .t{flex:1;font-size:14px;min-width:0}
 .cart button{background:#fff;color:#111827;font-weight:600}
+body.typing .cart{display:none!important}
+body.typing header{position:relative}
 .sheet{position:fixed;inset:0;z-index:10;background:rgba(0,0,0,.4);display:flex;align-items:flex-end}
 .panel{background:#fff;width:100%;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:14px 14px 24px}
 .panel h2{font-size:17px;margin:0 0 8px;display:flex;align-items:center;gap:8px}
@@ -367,7 +369,24 @@ function drawChips() {
     .map(c => `<button class="${MODE === c[0] ? 'on' : ''}" onclick="MODE='${c[0]}';LIMIT=60;render()">${c[1]}</button>`).join('');
 }
 let stimer = 0;
-function onSearch() { clearTimeout(stimer); stimer = setTimeout(() => { LIMIT = 60; render(); }, 150); }
+function onSearch() {
+  clearTimeout(stimer); stimer = setTimeout(() => { LIMIT = 60; render(); }, 150);
+  // 打的貨號／條碼剛好對上一個品項就直接跳出來（iPhone 數字鍵盤沒有 Enter）
+  clearTimeout(xtimer); xtimer = setTimeout(autoExact, 500);
+}
+let xtimer = null;
+function autoExact() {
+  const el = document.getElementById('q'), v = el.value.trim(), c = v.toUpperCase();
+  if (c.length < 4 || !SNAP) return;
+  const hit = BYBC[c] || (BYSKU[c] ? [BYSKU[c]] : null);
+  if (!hit || hit.length !== 1) return;
+  // 還有別的貨號／條碼是用這串開頭的，可能還沒打完，先不跳
+  if (SNAP.items.some(i => i !== hit[0] && ((i.k || '').toUpperCase().startsWith(c) || (i.b || '').startsWith(c)))) return;
+  el.value = ''; openItem(hit[0].k);
+}
+/* 打字時鍵盤會把下面的抄貨單條推上來擋住品項 → 打字時先藏起來 */
+document.addEventListener('focusin', e => { if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && e.target.type !== 'date') document.body.classList.add('typing'); });
+document.addEventListener('focusout', () => setTimeout(() => { const a = document.activeElement; if (!a || !/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) document.body.classList.remove('typing'); }, 100));
 function matches() {
   const q = document.getElementById('q').value.trim().toLowerCase();
   let arr = SNAP.items;
@@ -729,7 +748,7 @@ if (PIN && WHO.name) { boot(); logIn().catch(() => {}); }
 else showLogin();
 </script>
 <script>
-// 離線快取：沒訊號也能打開這一頁（網站版 fc5e6d2da1）
+// 離線快取：沒訊號也能打開這一頁（網站版 fb68f9bcf1）
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
