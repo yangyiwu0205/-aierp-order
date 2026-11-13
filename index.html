@@ -301,11 +301,11 @@ async function syncNow(manual) {
   if (!pend.length) { if (manual) { toast('全部都已上傳'); pullOrders().catch(() => {}); } return; }
   SYNCING = true;
   try {
-    const sent = pend.map(o => ({ id: o.id, date: o.date, cust: o.cust, sales: o.sales, note: o.note, items: o.items, upd: o.upd, del: !!o.del }));
+    const sent = pend.map(o => ({ id: o.id, date: o.date, cust: o.cust, sales: o.sales, note: o.note, items: o.items, upd: o.upd, del: !!o.del, fin: o.fin || 0 }));
     const r = (await call('syncOrders', { orders: sent, dev: deviceName() })).data;
     r.forEach(x => {
       const o = ORDERS.find(y => y.id === x.id); if (!o) return;
-      o.no = x.no;
+      o.no = x.no; if (x.fin) o.fin = x.fin;
       if (o.upd === x.upd) o.dirty = false;      // 上傳途中又改過的，下次再送
     });
     ORDERS = ORDERS.filter(o => !(o.del && !o.dirty));
@@ -464,6 +464,7 @@ function card(it) {
     </div>
     <div class="dates">近期銷售：${it.d.length ? it.d.map(md).join('、') + '（' + ago(it.d[0]) + '）' : '兩年內沒賣過'}</div>
     ${h ? `<div class="last">這客戶上次 ${ymd(h[0])} 叫 <b>${numTxt(h[1])}</b> ${esc(it.u)}，單價 ${money(h[2])}（兩年內 ${h[3]} 次）</div>` : ''}
+    ${shippedRecently(it.k) ? '<div class="last" style="background:#fee2e2;color:#991b1b">⚠ 3 天內 AIERP 已出過貨，小心重複</div>' : ''}
     <div class="qrow">
       <label>數量</label><input class="n" type="number" inputmode="decimal" value="${esc(v.n)}" placeholder="輸入" oninput="draft('${esc(it.k)}','n',this.value)">
       <label>單價</label><input class="p" type="number" inputmode="decimal" value="${esc(v.p)}" placeholder="單價" oninput="draft('${esc(it.k)}','q',this.value)">
@@ -485,6 +486,12 @@ function addItem(sku, fromSheet) {
   const n = nIn ? nIn.value : defQty(it), p = pIn ? pIn.value : defPrice(it);
   if (!(Number(n) > 0)) { toast('請先輸入數量'); if (nIn) nIn.focus(); return; }
   const o = curOrder(true), ex = o.items.find(x => x.code === sku);
+  const dup = !ex && shippedRecently(sku);
+  if (dup && !confirm(`⚠ 可能重複出貨
+${CUST.n}
+${dup}（AIERP 銷貨紀錄）
+
+確定還要抄嗎？`)) return;
   if (ex) { ex.n = n; ex.q = p; }
   else o.items.push({ code: sku, name: it.n + (it.sp ? ' ' + it.sp : ''), unit: it.u, n, q: p });
   delete DRAFT[sku];
@@ -503,6 +510,7 @@ function openItem(sku) {
     ['成本', COSTS ? money(c) : '', 'cst']].filter(x => x[1]);
   openSheet(`<h2><span>${esc(it.n)}</span><button class="ghost" onclick="closeSheet()">關閉</button></h2>
     ${h ? `<div class="last">${esc(CUST.n)} 上次 ${ymd(h[0])}（${ago(h[0])}）叫 <b>${numTxt(h[1])}</b> ${esc(it.u)}，單價 ${money(h[2])}，兩年內 ${h[3]} 次</div>` : CUST ? `<div class="last">${esc(CUST.n)} 兩年內沒叫過這個</div>` : '<div class="last">還沒選客戶</div>'}
+    ${shippedRecently(it.k) ? '<div class="last" style="background:#fee2e2;color:#991b1b">⚠ 3 天內 AIERP 已出過貨，小心重複</div>' : ''}
     <div class="qrow">
       <label>數量</label><input class="n" id="sn" type="number" inputmode="decimal" value="${esc(v.n)}" placeholder="輸入數量" onkeydown="if(event.key==='Enter')addItem('${esc(sku)}',true)">
       <label>單價</label><input class="p" type="number" inputmode="decimal" value="${esc(v.p)}">
@@ -650,7 +658,7 @@ function openOrder(id) {
   if (id && (o.cust.k !== (CUST && CUST.k) || o.date !== DAY)) { CUST = o.cust; LS.set('cust', CUST); DAY = o.date; document.getElementById('day').value = DAY; drawCust(); useCust(); render(); }
   const s = totals(o), mine = o.sales === WHO.name;
   openSheet(`<h2><span>${esc(o.cust.n)}｜${dayTxt(o.date)}</span><button class="ghost" onclick="closeSheet()">關閉</button></h2>
-    <div class="code">${o.no ? '單號 ' + esc(o.no) : '還沒有單號（上傳後產生）'}｜${esc(o.sales)}｜<span class="badge ${o.dirty ? 'wait' : 'ok'}">${o.dirty ? '存在手機，等上傳' : '已上傳'}</span></div>
+    <div class="code">${o.no ? '單號 ' + esc(o.no) : '還沒有單號（上傳後產生）'}｜${esc(o.sales)}｜<span class="badge ${o.dirty ? 'wait' : 'ok'}">${o.dirty ? '存在手機，等上傳' : '已上傳'}</span>｜${o.fin ? '<span class="badge ok">已按完成，公司會收到 LINE</span>' : '<span class="badge wait">還沒按完成，公司不知道</span>'}</div>
     ${mine ? '' : '<div class="last">這張是 ' + esc(o.sales) + ' 抄的，只能看</div>'}
     <textarea rows="2" style="margin-top:8px" placeholder="備註（交期、運費…）" ${mine ? '' : 'disabled'} oninput="ORD.note=this.value;touch(ORD)">${esc(o.note)}</textarea>
     <div>${o.items.map((x, i) => {
@@ -668,10 +676,31 @@ function openOrder(id) {
       </div>`;
     }).join('') || '<div class="center">還沒有品項</div>'}</div>
     <div class="sum" id="qsum">${sumHtml(s)}</div>
-    <div class="row"><button class="pri" onclick="closeSheet();syncNow(true)">完成並上傳</button><button onclick="custView()">客戶版</button></div>
+    <div class="row"><button class="pri" onclick="finishOrder()">${o.fin ? '完成並上傳（改過會再通知）' : '完成並上傳（通知公司）'}</button><button onclick="custView()">客戶版</button></div>
     <div class="row"><button onclick="copyText()">複製文字（貼 LINE）</button>${mine ? '<button class="danger" onclick="delOrder()">刪除這張單</button>' : ''}</div>
     <div class="row"><button onclick="excel('cust')">Excel（客戶版）</button><button class="cst" onclick="excel('inner')">Excel（內部含毛利）</button></div>`);
   window.ORD = o;
+}
+/* 按「完成並上傳」＝這張單抄好了，AIERP 主機會用公司 LINE 發到「優之館業務訂單」群 */
+function finishOrder() {
+  const o = ORD;
+  if (!o.items.length) return toast('這張單沒有品項');
+  const dup = o.items.map(x => shippedRecently(x.code)).filter(Boolean);
+  if (dup.length && !confirm(`⚠ 這些品項這客戶 3 天內 AIERP 已經出過貨：
+${dup.join(String.fromCharCode(10))}
+
+確定沒有重複，要送出嗎？`)) return;
+  o.fin = o.fin || Date.now(); touch(o);
+  closeSheet(); syncNow(true);
+  toast('已完成，公司會收到 LINE 通知' + (ONLINE ? '' : '（現在沒網路，有網路才會送出）'));
+}
+/* AIERP 銷貨紀錄裡這客戶 3 天內出過這個品項 → 回一行說明，沒有回空字串 */
+function shippedRecently(sku) {
+  const h = HIST[sku]; if (!h || !h[0]) return '';
+  const d = Math.round((new Date(today()) - new Date(h[0])) / 864e5);
+  if (d > 3) return '';
+  const it = BYSKU[sku];
+  return `${it ? it.n : sku}：${md(h[0])} 已出 ${numTxt(h[1])} ${it ? it.u : ''}`;
 }
 function sumHtml(s) {
   return `<div><span>數量合計</span><span>${numTxt(s.qty)}</span></div><div><span>金額</span><b>${money(s.total)}</b></div>
@@ -762,7 +791,7 @@ function openOrders() {
         return `<div class="ord ${cur ? 'cur' : ''}" onclick="openOrder('${o.id}')">
           <div style="display:flex;gap:8px;align-items:center"><b style="flex:1">${esc(o.cust.n)}</b><span>${money(s.total)}</span></div>
           <div class="code" style="display:flex;gap:6px;align-items:center"><span style="flex:1">${o.items.length} 項｜數量 ${numTxt(s.qty)}${OFILTER === 'all' ? '｜' + esc(o.sales) : ''}${o.no ? '｜' + esc(o.no) : ''}</span>
-            <span class="badge ${o.dirty ? 'wait' : 'ok'}">${o.dirty ? '待上傳' : '已上傳'}</span></div></div>`;
+            <span class="badge ${o.dirty ? 'wait' : 'ok'}">${o.dirty ? '待上傳' : '已上傳'}</span>${o.fin ? '' : '<span class="badge wait">未按完成</span>'}</div></div>`;
       }).join('');
     }).join('') || '<div class="center">還沒有抄貨單</div>'}`);
 }
@@ -782,7 +811,7 @@ if (PIN && WHO.name) { boot(); logIn().catch(() => {}); }
 else showLogin();
 </script>
 <script>
-// 離線快取：沒訊號也能打開這一頁（網站版 dd02ea9d0e）
+// 離線快取：沒訊號也能打開這一頁（網站版 1f09708437）
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
