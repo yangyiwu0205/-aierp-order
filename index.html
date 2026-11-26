@@ -686,6 +686,9 @@ function openOrder(id) {
   if (id) { CO = coOf(o); drawCo(); }
   if (id && (o.cust.k !== (CUST && CUST.k) || o.date !== DAY)) { CUST = o.cust; LS.set('cust', CUST); DAY = o.date; document.getElementById('day').value = DAY; drawCust(); useCust(); render(); }
   const s = totals(o), mine = o.sales === WHO.name;
+  // 同一張單原地重畫（刪品項、改數量、同步完）就停在原本的位置，不要跳回最上面
+  const pnl = document.getElementById('panel');
+  const keepY = !document.getElementById('sheet').classList.contains('hide') && window.ORD && window.ORD.id === o.id && document.getElementById('qsum') ? pnl.scrollTop : 0;
   openSheet(`<h2><span>${esc(o.cust.n)}｜${dayTxt(o.date)}</span><button class="ghost" onclick="closeSheet()">關閉</button></h2>
     <div class="code">${o.no ? '單號 ' + esc(o.no) : '還沒有單號（上傳後產生）'}｜${esc(o.sales)}｜<span class="badge ${o.dirty ? 'wait' : 'ok'}">${o.dirty ? '存在手機，等上傳' : '已上傳'}</span>｜${o.fin ? '<span class="badge ok">已按完成，公司會收到 LINE</span>' : '<span class="badge wait">還沒按完成，公司不知道</span>'}${o.ship ? '｜<span class="badge ok">已出貨完成 ' + shipTxt(o.ship) + '</span>' : ''}</div>
     ${mine ? '' : '<div class="last">這張是 ' + esc(o.sales) + ' 抄的，只能看</div>'}
@@ -715,6 +718,7 @@ function openOrder(id) {
       : '<span class="last">這張還沒上傳，上傳後才能標出貨完成</span>'}</div>
     <div class="row"><button onclick="copyText()">複製文字（貼 LINE）</button>${mine ? '<button class="danger" onclick="delOrder()">刪除這張單</button>' : ''}</div>
     <div class="row"><button onclick="excel('cust')">Excel（客戶版）</button><button class="cst" onclick="excel('inner')">Excel（內部含毛利）</button></div>`);
+  if (keepY) pnl.scrollTop = Math.min(keepY, pnl.scrollHeight - pnl.clientHeight);
   window.ORD = o;
 }
 /* 按「完成並上傳」＝這張單抄好了，AIERP 主機會用公司 LINE 發到「優之館業務訂單」群 */
@@ -879,7 +883,7 @@ if (PIN && WHO.name) { boot(); logIn().catch(() => {}); }
 else showLogin();
 </script>
 <script>
-// 離線快取：沒訊號也能打開這一頁（網站版 7e3da7d81d）
+// 離線快取：沒訊號也能打開這一頁（網站版 f073efb202）
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
