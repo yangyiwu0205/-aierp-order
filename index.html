@@ -473,7 +473,31 @@ function render() {
 
 /* 預設數量：這客戶上次叫的；預設單價：這客戶上次的價 → 近 90 天成交均價 → 標價 */
 function defQty(it) { const h = HIST[it.k]; return h ? h[1] : ''; }
-function defPrice(it) { const h = HIST[it.k]; return h && h[2] > 0 ? h[2] : it.ap != null ? it.ap : it.pr != null ? it.pr : ''; }
+function defPrice(it) {
+  const h = HIST[it.k];
+  if (h && h[2] > 0) return h[2];                       // 這客戶上次的價
+  if (it.lp != null) return it.lp;                       // 這個品項最近一次實際成交價
+  if (!('lp' in it) && it.ap != null) return it.ap;     // 主機還沒推新格式資料（沒有 lp 欄位）時暫時沿用
+  return it.pr != null ? it.pr : '';
+}
+// 抄貨單每一行的提醒（使用者 2026-11-26：近期銷貨的時間也要顯示在抄貨單上，提醒重複出貨或業務重複抄貨）
+// 1. 這客戶上次叫這項：日期、數量、單價（AIERP 實際出貨）　2. 這個品項近期銷售日期
+// 3. 紅字：這客戶 3 天內 AIERP 已出過這項（可能重複出貨）；手機裡這客戶前後 3 天別張抄貨單也有這項（可能重複抄貨）
+function lineHints(o, x, it) {
+  const h = (HALL[o.cust && o.cust.k] || {})[x.code];
+  const out = [];
+  if (h) out.push(`這客戶上次 ${md(h[0])} 叫 ${numTxt(h[1])}${h[2] > 0 ? '　單價 ' + money(h[2]) : ''}`);
+  if (it && it.d && it.d.length) out.push(`近期銷售：${it.d.map(md).join('、')}（${ago(it.d[0])}）`);
+  const warn = [];
+  if (h && h[0] <= o.date && dayDiff(o.date, h[0]) <= 3) warn.push(`⚠ 這客戶 ${md(h[0])} 已經出過 ${numTxt(h[1])}，確認不是重複出貨`);
+  const dup = ORDERS.filter(p => p !== o && !p.del && p.cust && o.cust && p.cust.k === o.cust.k && Math.abs(dayDiff(p.date, o.date)) <= 3)
+    .map(p => ({ p, y: (p.items || []).find(y => y.code === x.code) })).filter(r => r.y);
+  for (const r of dup) warn.push(`⚠ ${esc(r.p.sales || '')} ${md(r.p.date)} 的抄貨單也有這項 ${numTxt(r.y.n)}，確認不是重複抄貨`);
+  if (!out.length && !warn.length) return '';
+  return `<div class="dates" style="margin-top:2px">${out.map(esc).join('<br>')}</div>`
+    + (warn.length ? `<div style="color:var(--bad);font-size:13px;font-weight:700;margin-top:2px">${warn.join('<br>')}</div>` : '');
+}
+function dayDiff(a, b) { return Math.round((new Date(a + 'T00:00:00') - new Date(b + 'T00:00:00')) / 864e5); }
 const inOrder = sku => { const o = curOrder(); return o && o.items.find(x => x.code === sku); };
 const DRAFT = {};
 function vals(it) {
@@ -487,7 +511,7 @@ function card(it) {
     <div class="code">${esc(it.k)}${it.sp ? '｜' + esc(it.sp) : ''}${it.b ? '｜條碼 ' + esc(it.b) : ''}${it.l ? '｜' + esc(it.l) : ''}</div>
     <div class="nums">
       <span>剩餘庫存 <b class="${it.oh < 0 ? 'neg' : ''}">${numTxt(it.oh)}</b> ${esc(it.u)}</span>
-      ${it.ap != null ? `<span>近期均價 <b>${money(it.ap)}</b></span>` : it.pr ? `<span>標價 <b>${money(it.pr)}</b></span>` : ''}
+      ${it.lp != null ? `<span>上次成交 <b>${money(it.lp)}</b>${it.ld ? '（' + md(it.ld) + '）' : ''}</span>` : it.pr ? `<span>標價 <b>${money(it.pr)}</b></span>` : ''}
       ${it.q90 ? `<span>90天出 ${numTxt(it.q90)}</span>` : ''}
     </div>
     <div class="dates">近期銷售：${it.d.length ? it.d.map(md).join('、') + '（' + ago(it.d[0]) + '）' : '兩年內沒賣過'}</div>
@@ -533,7 +557,8 @@ function openItem(sku) {
   const h = HIST[it.k], v = vals(it), c = COSTS && COSTS[sku];
   const kv = [['貨號', esc(it.k)], ['規格', esc(it.sp)], ['條碼', esc(it.b)], ['單位', esc(it.u)], ['儲位', esc(it.l)], ['分類', esc(it.c)],
     ['剩餘庫存', `<b class="${it.oh < 0 ? 'neg' : ''}">${numTxt(it.oh)}</b> ${esc(it.u)}`],
-    ['標價', it.pr ? money(it.pr) : ''], ['近期均價', it.ap != null ? money(it.ap) + '（90 天成交）' : ''],
+    ['標價', it.pr ? money(it.pr) : ''], ['上次成交', it.lp != null ? money(it.lp) + (it.ld ? '（' + ymd(it.ld) + '）' : '') : ''],
+    ['近期均價', it.ap != null ? money(it.ap) + '（90 天成交，只供參考）' : ''],
     ['近期銷售', it.d.length ? it.d.map(ymd).join('<br>') : '兩年內沒賣過'], ['90 天出量', it.q90 ? numTxt(it.q90) : ''],
     ['成本', COSTS ? money(c) : '', 'cst']].filter(x => x[1]);
   openSheet(`<h2><span>${esc(it.n)}</span><button class="ghost" onclick="closeSheet()">關閉</button></h2>
@@ -700,6 +725,7 @@ function openOrder(id) {
       return `<div class="qi">
         <div class="nm" style="font-size:14px">${esc(x.name)}</div>
         <div class="code">${esc(x.code)}${it ? '｜庫存 ' + numTxt(it.oh) + ' ' + esc(it.u) : ''}<span class="cst">｜成本 ${money(c)}</span></div>
+        ${lineHints(o, x, it)}
         <div class="qrow">
           <label>數量</label><input class="n" type="number" inputmode="decimal" value="${esc(x.n)}" ${mine ? '' : 'disabled'} oninput="setQ(${i},'n',this.value)">
           <label>單價</label><input class="p" type="number" inputmode="decimal" value="${esc(x.q)}" ${mine ? '' : 'disabled'} oninput="setQ(${i},'q',this.value)">
@@ -883,7 +909,7 @@ if (PIN && WHO.name) { boot(); logIn().catch(() => {}); }
 else showLogin();
 </script>
 <script>
-// 離線快取：沒訊號也能打開這一頁（網站版 f073efb202）
+// 離線快取：沒訊號也能打開這一頁（網站版 88f8582704）
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
