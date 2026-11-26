@@ -480,22 +480,12 @@ function defPrice(it) {
   if (!('lp' in it) && it.ap != null) return it.ap;     // 主機還沒推新格式資料（沒有 lp 欄位）時暫時沿用
   return it.pr != null ? it.pr : '';
 }
-// 抄貨單每一行的提醒（使用者 2026-11-26：近期銷貨的時間也要顯示在抄貨單上，提醒重複出貨或業務重複抄貨）
-// 1. 這客戶上次叫這項：日期、數量、單價（AIERP 實際出貨）　2. 這個品項近期銷售日期
-// 3. 紅字：這客戶 3 天內 AIERP 已出過這項（可能重複出貨）；手機裡這客戶前後 3 天別張抄貨單也有這項（可能重複抄貨）
+// 抄貨單每一行：只顯示這個品項的近期銷售日期當參考。
+// 不在業務端提醒重複出貨／重複抄貨（使用者 2026-11-26：業務當場取消的話，公司就不知道客戶要這個貨、缺料也追不到；
+// 重複出貨改在 AIERP 轉銷貨單時提醒）
 function lineHints(o, x, it) {
-  const h = (HALL[o.cust && o.cust.k] || {})[x.code];
-  const out = [];
-  if (h) out.push(`這客戶上次 ${md(h[0])} 叫 ${numTxt(h[1])}${h[2] > 0 ? '　單價 ' + money(h[2]) : ''}`);
-  if (it && it.d && it.d.length) out.push(`近期銷售：${it.d.map(md).join('、')}（${ago(it.d[0])}）`);
-  const warn = [];
-  if (h && h[0] <= o.date && dayDiff(o.date, h[0]) <= 3) warn.push(`⚠ 這客戶 ${md(h[0])} 已經出過 ${numTxt(h[1])}，確認不是重複出貨`);
-  const dup = ORDERS.filter(p => p !== o && !p.del && p.cust && o.cust && p.cust.k === o.cust.k && Math.abs(dayDiff(p.date, o.date)) <= 3)
-    .map(p => ({ p, y: (p.items || []).find(y => y.code === x.code) })).filter(r => r.y);
-  for (const r of dup) warn.push(`⚠ ${esc(r.p.sales || '')} ${md(r.p.date)} 的抄貨單也有這項 ${numTxt(r.y.n)}，確認不是重複抄貨`);
-  if (!out.length && !warn.length) return '';
-  return `<div class="dates" style="margin-top:2px">${out.map(esc).join('<br>')}</div>`
-    + (warn.length ? `<div style="color:var(--bad);font-size:13px;font-weight:700;margin-top:2px">${warn.join('<br>')}</div>` : '');
+  if (!(it && it.d && it.d.length)) return '';
+  return `<div class="dates" style="margin-top:2px">近期銷售：${it.d.map(md).join('、')}（${ago(it.d[0])}）</div>`;
 }
 function dayDiff(a, b) { return Math.round((new Date(a + 'T00:00:00') - new Date(b + 'T00:00:00')) / 864e5); }
 const inOrder = sku => { const o = curOrder(); return o && o.items.find(x => x.code === sku); };
@@ -783,6 +773,9 @@ async function markShipped(id, on) {
 }
 /* AIERP 銷貨紀錄裡這客戶 3 天內出過這個品項 → 回一行說明，沒有回空字串 */
 function shippedRecently(sku) {
+  // 2026-11-26 使用者：業務端不提醒重複出貨——業務看到提醒當場取消的話，公司就不知道客戶要這個貨、缺料也追不到。
+  // 重複出貨改在 AIERP 轉銷貨單時提醒（7 天內）。這裡一律回空字串：卡片紅條、加品項確認、完成確認都不會出現
+  return '';
   const h = HIST[sku]; if (!h || !h[0]) return '';
   const d = Math.round((new Date(today()) - new Date(h[0])) / 864e5);
   if (d > 3) return '';
@@ -909,7 +902,7 @@ if (PIN && WHO.name) { boot(); logIn().catch(() => {}); }
 else showLogin();
 </script>
 <script>
-// 離線快取：沒訊號也能打開這一頁（網站版 88f8582704）
+// 離線快取：沒訊號也能打開這一頁（網站版 6c51a57d34）
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
