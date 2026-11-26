@@ -897,12 +897,28 @@ function openSheet(html) { document.getElementById('panel').innerHTML = html; do
 function closeSheet() { stopCam(); document.getElementById('sheet').classList.add('hide'); render(); updateCart(); }
 
 /* ---------------- 開始 ---------------- */
+// 從 AIERP 點進來（網址 #sso=通行證）：雲端驗過就用 AIERP 的登入帳號直接進來，不用打密碼
+async function ssoStart(tok) {
+  history.replaceState(null, '', location.pathname + location.search);   // 通行證只用一次，從網址拿掉
+  try {
+    const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ page: 'erp', sso: tok }) }).then(x => x.json());
+    if (!r || !r.ok) throw new Error(r && r.err || '雲端沒有回應');
+    PIN = r.pin; WHO.name = r.name; LS.set('pin', PIN); LS.set('who', WHO);
+    await boot(); logIn().catch(() => {});
+    toast(WHO.name + ' 你好（用 AIERP 帳號登入）');
+  } catch (e) {
+    if (PIN && WHO.name) { boot(); toast('AIERP 登入沒成功：' + e.message); }
+    else showLogin('AIERP 登入沒成功：' + e.message);
+  }
+}
+const SSO = (location.hash.match(/[#&]sso=([^&]+)/) || [])[1];
 // 存過密碼就直接用手機上的資料開（沒網路也行），登入紀錄在背景補送
-if (PIN && WHO.name) { boot(); logIn().catch(() => {}); }
+if (SSO && !GAS) ssoStart(decodeURIComponent(SSO));
+else if (PIN && WHO.name) { boot(); logIn().catch(() => {}); }
 else showLogin();
 </script>
 <script>
-// 離線快取：沒訊號也能打開這一頁（網站版 6c51a57d34）
+// 離線快取：沒訊號也能打開這一頁（網站版 0b56a71043）
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
