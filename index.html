@@ -464,7 +464,7 @@ function render() {
   render.later = false;
   drawChips();
   const arr = matches();
-  document.getElementById('meta').textContent = `${arr.length} 項｜AIERP 資料 ${String(SNAP.at).slice(5, 16)}｜銷售到 ${ymd(SNAP.lastSale).slice(5)}`;
+  document.getElementById('meta').textContent = `${arr.length} 項｜庫存同步 ${String(SNAP.sync || SNAP.at).slice(5, 16)}｜銷售到 ${ymd(SNAP.lastSale).slice(5)}`;
   const show = arr.slice(0, LIMIT);
   document.getElementById('list').innerHTML = show.length ? show.map(card).join('') +
     (arr.length > LIMIT ? `<button class="more" onclick="LIMIT+=100;render()">再顯示 ${Math.min(100, arr.length - LIMIT)} 項（共 ${arr.length}）</button>` : '')
@@ -918,7 +918,7 @@ else if (PIN && WHO.name) { boot(); logIn().catch(() => {}); }
 else showLogin();
 </script>
 <script>
-// 離線快取：沒訊號也能打開這一頁（網站版 0b56a71043）
+// 離線快取：沒訊號也能打開這一頁（網站版 2b9203f03e）
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
